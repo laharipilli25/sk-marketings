@@ -1,0 +1,55 @@
+import { Routes, Route, useLocation } from 'react-router-dom'
+import { AnimatePresence } from 'framer-motion'
+import { useEffect } from 'react'   // ✅ ADDED
+
+import Layout from './layouts/Layout'
+import Home from './pages/Home'
+import About from './pages/About'
+import Services from './pages/Services'
+import Clients from './pages/Clients'
+import Contact from './pages/Contact'
+import WhatsAppButton from './components/WhatsAppButton'
+
+// ✅ EXISTING LOGIN IMPORTS
+import UserLogin from './pages/UserLogin'
+import AdminLogin from './pages/AdminLogin'
+
+// ✅ DASHBOARD IMPORTS
+import UserDashboard from './pages/UserDashboard'
+import AdminDashboard from './pages/AdminDashboard'
+import ViewPage from './pages/ViewPage'
+
+function App() {
+  const location = useLocation()
+
+  // ✅ SCROLL FIX (ONLY ADD THIS)
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
+  return (
+    <>
+      <Layout>
+        <AnimatePresence mode="wait">
+          <Routes location={location} key={location.pathname}>
+            <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/services" element={<Services />} />
+            <Route path="/clients" element={<Clients />} />
+            <Route path="/contact" element={<Contact />} />
+
+            <Route path="/user-login" element={<UserLogin />} />
+            <Route path="/admin-login" element={<AdminLogin />} />
+            <Route path="/user-dashboard" element={<UserDashboard />} />
+            <Route path="/admin-dashboard" element={<AdminDashboard />} />
+            <Route path="/view/:id" element={<ViewPage />} />
+          </Routes>
+        </AnimatePresence>
+      </Layout>
+
+      <WhatsAppButton />
+    </>
+  )
+}
+
+export default App
