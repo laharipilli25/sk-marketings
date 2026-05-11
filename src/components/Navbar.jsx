@@ -75,20 +75,12 @@ function Navbar() {
             </Link>
           ))}
 
-          {/* ✅ USER LOGIN - Same as Admin Color */}
+          {/* ✅ LOGIN - Unified for Admin & Agent */}
           <Link
-            to="/user-login"
+            to="/login"
             className="ml-4 bg-orange-500 text-white px-5 py-2 rounded-lg text-sm font-black hover:bg-orange-600 transition-all shadow-md active:scale-95"
           >
-            User Login
-          </Link>
-
-          {/* ✅ ADMIN LOGIN - Core Brand Color */}
-          <Link
-            to="/admin-login"
-            className="bg-orange-500 text-white px-5 py-2 rounded-lg text-sm font-black hover:bg-orange-600 transition-all shadow-md active:scale-95"
-          >
-            Admin Login
+            Login
           </Link>
 
           {/* ✅ CONSULTATION BUTTON */}

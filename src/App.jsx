@@ -17,6 +17,8 @@ import AdminLogin from './pages/AdminLogin'
 // ✅ DASHBOARD IMPORTS
 import UserDashboard from './pages/UserDashboard'
 import AdminDashboard from './pages/AdminDashboard'
+import AgentDashboard from './pages/AgentDashboard'
+import SignUp from './pages/SignUp'
 import ViewPage from './pages/ViewPage'
 
 function App() {
@@ -38,11 +40,23 @@ function App() {
             <Route path="/clients" element={<Clients />} />
             <Route path="/contact" element={<Contact />} />
 
+            {/* Auth Routes - Single Login */}
+            <Route path="/login" element={<UserLogin />} />
             <Route path="/user-login" element={<UserLogin />} />
-            <Route path="/admin-login" element={<AdminLogin />} />
-            <Route path="/user-dashboard" element={<UserDashboard />} />
+
+            {/* Dashboard Routes */}
+            <Route path="/agent-dashboard" element={<AgentDashboard />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
+
+            {/* Legacy Routes (for backward compatibility) */}
+            <Route path="/user-dashboard" element={<AgentDashboard />} />
+            <Route path="/admin-login" element={<UserLogin />} />
+
+            {/* Other Routes */}
             <Route path="/view/:id" element={<ViewPage />} />
+            <Route path="/signup" element={<SignUp />} />
+            <Route path="/user-signup" element={<SignUp />} />
+
           </Routes>
         </AnimatePresence>
       </Layout>

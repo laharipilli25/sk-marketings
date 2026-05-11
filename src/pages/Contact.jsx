@@ -40,8 +40,10 @@ const contactDetails = [
   },
 ]
 
+const API_URL = "http://localhost:3000/api"; // SK Marketings Backend
+
 function Contact() {
-  const [form, setForm] = useState({ name: '', phone: '', email: '', service: '', message: '' })
+  const [form, setForm] = useState({ name: '', phone: '', email: '', service: '', message: '', location: '' })
   const [errors, setErrors] = useState({})
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -61,12 +63,7 @@ function Contact() {
     return errs
   }
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
-    if (errors[e.target.name]) setErrors({ ...errors, [e.target.name]: '' })
-  }
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     const errs = validate()
     if (Object.keys(errs).length > 0) {
@@ -74,10 +71,37 @@ function Contact() {
       return
     }
     setLoading(true)
-    setTimeout(() => {
+
+    try {
+      const response = await fetch(`${API_URL}/inquiries`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          phone: form.phone,
+          email: form.email,
+          location: form.location,
+          serviceRequired: form.service,
+          message: form.message
+        })
+      })
+
+      if (response.ok) {
+        setSubmitted(true)
+        setForm({ name: '', phone: '', email: '', service: '', message: '', location: '' })
+      } else {
+        alert('Failed to submit inquiry. Please try again.')
+      }
+    } catch (error) {
+      alert('Network error. Please try again.')
+    } finally {
       setLoading(false)
-      setSubmitted(true)
-    }, 1800)
+    }
+  }
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value })
+    if (errors[e.target.name]) setErrors({ ...errors, [e.target.name]: '' })
   }
 
   return (
@@ -184,20 +208,22 @@ function Contact() {
                     <form onSubmit={handleSubmit} noValidate className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
-                          {/* HIGHLIGHTED LABEL */}
-                          <label className="text-[12px] font-black text-orange-600 uppercase tracking-widest ml-1">Name</label>
+                          <label className="text-[12px] font-black text-orange-600 uppercase tracking-widest ml-1">Name *</label>
                           <input type="text" name="name" value={form.name} onChange={handleChange} placeholder="Your Name"
                             className={`w-full border-2 ${errors.name ? 'border-red-200 bg-red-50' : 'border-gray-50 bg-gray-50'} rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-500 focus:bg-white transition-all font-medium`} />
                         </div>
                         <div className="space-y-2">
-                          {/* HIGHLIGHTED LABEL */}
-                          <label className="text-[12px] font-black text-orange-600 uppercase tracking-widest ml-1">Phone</label>
+                          <label className="text-[12px] font-black text-orange-600 uppercase tracking-widest ml-1">Phone *</label>
                           <input type="tel" name="phone" value={form.phone} onChange={handleChange} placeholder="Mobile Number"
                             className={`w-full border-2 ${errors.phone ? 'border-red-200 bg-red-50' : 'border-gray-50 bg-gray-50'} rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-500 focus:bg-white transition-all font-medium`} />
                         </div>
                       </div>
                       <div className="space-y-2">
-                          {/* HIGHLIGHTED LABEL */}
+                        <label className="text-[12px] font-black text-orange-600 uppercase tracking-widest ml-1">Location</label>
+                        <input type="text" name="location" value={form.location} onChange={handleChange} placeholder="Your City / Location"
+                          className="w-full border-2 border-gray-50 bg-gray-50 rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-500 focus:bg-white transition-all font-medium" />
+                      </div>
+                      <div className="space-y-2">
                           <label className="text-[12px] font-black text-orange-600 uppercase tracking-widest ml-1">Service Required</label>
                           <select name="service" value={form.service} onChange={handleChange}
                             className="w-full border-2 border-gray-50 bg-gray-50 rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-500 focus:bg-white transition-all appearance-none cursor-pointer font-medium" >
@@ -210,8 +236,7 @@ function Contact() {
                           </select>
                       </div>
                       <div className="space-y-2">
-                          {/* HIGHLIGHTED LABEL */}
-                          <label className="text-[12px] font-black text-orange-600 uppercase tracking-widest ml-1">Message</label>
+                          <label className="text-[12px] font-black text-orange-600 uppercase tracking-widest ml-1">Message *</label>
                           <textarea name="message" value={form.message} onChange={handleChange} placeholder="How can we help?" rows={4}
                             className={`w-full border-2 ${errors.message ? 'border-red-200 bg-red-50' : 'border-gray-50 bg-gray-50'} rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-500 focus:bg-white transition-all resize-none font-medium`} />
                       </div>
