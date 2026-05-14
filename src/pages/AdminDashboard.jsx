@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   FaUsers,
   FaClipboardList,
@@ -9,6 +9,7 @@ import {
   FaCheckCircle,
   FaTimesCircle,
   FaClock,
+  FaCheck,
   FaUserPlus,
   FaEdit,
   FaEye,
@@ -27,12 +28,21 @@ import {
   FaMoneyBill,
   FaReceipt,
   FaMapPin,
+  FaChartPie,
+  FaTimes,
+  FaLock,
+  FaEnvelopeOpenText,
 } from "react-icons/fa";
+import Dashboard from "../components/Dashboard";
+import Sidebar from "../components/Sidebar";
+import DashboardHeader from "../components/DashboardHeader";
+import Profile from "./Profile";
 
 const API_URL = "http://localhost:3000/api";
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState("leads"); // leads, agents, inquiries
+  const [activeTab, setActiveTab] = useState("dashboard"); // dashboard, leads, agents, inquiries
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [leads, setLeads] = useState([]);
   const [agents, setAgents] = useState([]);
   const [inquiries, setInquiries] = useState([]);
@@ -56,7 +66,9 @@ export default function AdminDashboard() {
     email: "",
     phone: "",
     password: "",
+    state_id: "",
     state: "",
+    district_id: "",
     district: "",
     mandal: "",
     village: "",
@@ -86,7 +98,9 @@ export default function AdminDashboard() {
     fullName: "",
     email: "",
     phone: "",
+    state_id: "",
     state: "",
+    district_id: "",
     district: "",
     mandal: "",
     village: "",
@@ -94,6 +108,76 @@ export default function AdminDashboard() {
     alternatePhone: "",
     status: "",
   });
+
+  // Location Data
+  const [states, setStates] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [mandals, setMandals] = useState([]);
+  const [villages, setVillages] = useState([]);
+
+  // Agent Filters & Search
+  const [agentFilters, setAgentFilters] = useState({
+    search: "",
+    state_id: "",
+    district_id: "",
+    mandal: "",
+    village: ""
+  });
+
+  useEffect(() => {
+    fetchStates();
+  }, []);
+
+  const fetchStates = async () => {
+    try {
+      const response = await fetch(`${API_URL}/auth/states`);
+      if (response.ok) {
+        const data = await response.json();
+        setStates(data);
+      }
+    } catch (error) {
+      console.error("Error fetching states:", error);
+    }
+  };
+
+  const fetchDistricts = async (stateId) => {
+    try {
+      const response = await fetch(`${API_URL}/auth/districts/${stateId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setDistricts(data);
+        setMandals([]);
+        setVillages([]);
+      }
+    } catch (error) {
+      console.error("Error fetching districts:", error);
+    }
+  };
+
+  const fetchMandals = async (stateId, districtId) => {
+    try {
+      const response = await fetch(`${API_URL}/auth/mandals/${stateId}/${districtId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setMandals(data);
+        setVillages([]);
+      }
+    } catch (error) {
+      console.error("Error fetching mandals:", error);
+    }
+  };
+
+  const fetchVillages = async (stateId, districtId, mandalName) => {
+    try {
+      const response = await fetch(`${API_URL}/auth/villages/${stateId}/${districtId}/${mandalName}`);
+      if (response.ok) {
+        const data = await response.json();
+        setVillages(data);
+      }
+    } catch (error) {
+      console.error("Error fetching villages:", error);
+    }
+  };
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -111,6 +195,12 @@ export default function AdminDashboard() {
     fetchDashboardData();
   }, []);
 
+  useEffect(() => {
+    if (activeTab === "leads" || activeTab === "dashboard") fetchLeads();
+    if (activeTab === "agents" || activeTab === "dashboard") fetchAgents();
+    if (activeTab === "inquiries" || activeTab === "dashboard") fetchInquiries();
+  }, [activeTab]);
+
   const fetchDashboardData = async () => {
     await Promise.all([fetchLeads(), fetchAgents(), fetchInquiries()]);
   };
@@ -118,7 +208,7 @@ export default function AdminDashboard() {
   const fetchLeads = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`${API_URL}/leads/all`, {
+      const response = await fetch(`${API_URL}/leads/all?limit=10000`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -131,10 +221,17 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchAgents = async () => {
+  const fetchAgents = async (filters = agentFilters) => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`${API_URL}/auth/agents`, {
+      const queryParams = new URLSearchParams();
+      if (filters.search) queryParams.append("search", filters.search);
+      if (filters.state_id) queryParams.append("state_id", filters.state_id);
+      if (filters.district_id) queryParams.append("district_id", filters.district_id);
+      if (filters.mandal) queryParams.append("mandal", filters.mandal);
+      if (filters.village) queryParams.append("village", filters.village);
+
+      const response = await fetch(`${API_URL}/auth/agents?${queryParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -149,6 +246,27 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error("Error fetching agents:", error);
+    }
+  };
+
+  const toggleAgentStatus = async (agentId, currentStatus) => {
+    try {
+      const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_URL}/auth/agents/${agentId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (response.ok) {
+        fetchAgents(agentFilters); // Refresh list with current filters
+      }
+    } catch (error) {
+      console.error("Error toggling agent status:", error);
     }
   };
 
@@ -188,7 +306,7 @@ export default function AdminDashboard() {
       });
 
       if (response.ok) {
-        fetchAgents();
+        fetchAgents(agentFilters);
       } else {
         alert("Failed to update agent status");
       }
@@ -206,13 +324,24 @@ export default function AdminDashboard() {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
+      const formData = new FormData();
+      formData.append("fullName", agentForm.fullName);
+      formData.append("email", agentForm.email);
+      formData.append("phone", agentForm.phone);
+      formData.append("password", agentForm.password);
+      formData.append("status", "ACTIVE");
+      if (agentForm.state_id) formData.append("state_id", agentForm.state_id);
+      if (agentForm.district_id) formData.append("district_id", agentForm.district_id);
+      if (agentForm.mandal) formData.append("mandal", agentForm.mandal);
+      if (agentForm.village) formData.append("village", agentForm.village);
+      if (agentForm.aadharNumber) formData.append("aadharNumber", agentForm.aadharNumber);
+      if (agentForm.alternatePhone) formData.append("alternatePhone", agentForm.alternatePhone);
+      if (agentForm.profilePhoto instanceof File) formData.append("profilePhoto", agentForm.profilePhoto);
+
       const response = await fetch(`${API_URL}/auth/create-agent`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ ...agentForm, status: "ACTIVE" }),
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
       });
 
       if (response.ok) {
@@ -253,14 +382,22 @@ export default function AdminDashboard() {
       fullName: agent.full_name,
       email: agent.email,
       phone: agent.phone,
+      state_id: agent.state_id || "",
       state: agent.state || "",
+      district_id: agent.district_id || "",
       district: agent.district || "",
       mandal: agent.mandal || "",
       village: agent.village || "",
       aadharNumber: agent.aadhar_number || "",
       alternatePhone: agent.alternate_phone || "",
       status: agent.status,
+      profilePhoto: agent.profile_photo || null,
     });
+
+    if (agent.state_id) fetchDistricts(agent.state_id);
+    if (agent.state_id && agent.district_id) fetchMandals(agent.state_id, agent.district_id);
+    if (agent.state_id && agent.district_id && agent.mandal) fetchVillages(agent.state_id, agent.district_id, agent.mandal);
+
     setShowEditAgent(true);
   };
 
@@ -273,21 +410,24 @@ export default function AdminDashboard() {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
+      const formData = new FormData();
+      formData.append("fullName", editAgentForm.fullName);
+      formData.append("email", editAgentForm.email);
+      formData.append("phone", editAgentForm.phone);
+      if (editAgentForm.state_id) formData.append("state_id", editAgentForm.state_id);
+      if (editAgentForm.district_id) formData.append("district_id", editAgentForm.district_id);
+      if (editAgentForm.mandal) formData.append("mandal", editAgentForm.mandal);
+      if (editAgentForm.village) formData.append("village", editAgentForm.village);
+      if (editAgentForm.aadharNumber) formData.append("aadharNumber", editAgentForm.aadharNumber);
+      if (editAgentForm.alternatePhone) formData.append("alternatePhone", editAgentForm.alternatePhone);
+      if (editAgentForm.status) formData.append("status", editAgentForm.status);
+      if (editAgentForm.password) formData.append("password", editAgentForm.password);
+      if (editAgentForm.profilePhoto instanceof File) formData.append("profilePhoto", editAgentForm.profilePhoto);
+
       const response = await fetch(`${API_URL}/auth/agents/${editAgentForm.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          fullName: editAgentForm.fullName,
-          email: editAgentForm.email,
-          phone: editAgentForm.phone,
-          state: editAgentForm.state,
-          district: editAgentForm.district,
-          mandal: editAgentForm.mandal,
-          village: editAgentForm.village,
-          aadharNumber: editAgentForm.aadharNumber,
-          alternatePhone: editAgentForm.alternatePhone,
-          status: editAgentForm.status,
-        }),
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
       });
 
       if (response.ok) {
@@ -494,96 +634,51 @@ export default function AdminDashboard() {
   const activeAgents = agents.filter((a) => a.status === "ACTIVE");
 
   return (
-    <div className="min-h-screen mt-24 relative overflow-hidden">
-      {/* Background */}
-      <div
-        className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `url('https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2669&auto=format&fit=crop')`,
-        }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-b from-orange-500/80 via-white/90 to-white" />
-      </div>
+    <div className="flex min-h-screen bg-gray-50">
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+      />
+      
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <DashboardHeader 
+          title={activeTab === 'dashboard' ? 'Overview' : activeTab === 'leads' ? 'Lead Management' : activeTab === 'agents' ? 'Agent Management' : activeTab === 'inquiries' ? 'Contact Inquiries' : 'My Profile'} 
+          onMenuClick={() => setIsSidebarOpen(true)} 
+        />
+        
+        <main className="flex-1 overflow-y-auto p-4 pb-24 md:p-6 custom-scrollbar relative">
+          <div className="relative z-10">
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto p-6 relative z-10">
-        {/* Header */}
-        <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2">
-              <FaUserCheck /> Admin Portal
-            </div>
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight">
-              Admin <span className="text-orange-600">Dashboard</span>
-            </h2>
-            <p className="text-gray-600 mt-2">Manage agents, leads, and inquiries</p>
-          </div>
+            {/* DASHBOARD TAB */}
+            {activeTab === "dashboard" && (
+              <Dashboard 
+                role="ADMIN" 
+                leads={leads} 
+                agents={agents} 
+                inquiries={inquiries}
+                stats={stats}
+                onTabChange={setActiveTab}
+              />
+            )}
 
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-6 py-3 bg-gray-800 text-white rounded-xl font-bold hover:bg-gray-900 transition-all shadow-lg"
-          >
-            <FaSignOutAlt /> Logout
-          </button>
-        </header>
+            {/* PROFILE TAB */}
+            {activeTab === "profile" && (
+              <Profile />
+            )}
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            icon={<FaClipboardList />}
-            label="Total Leads"
-            value={stats.totalLeads}
-            color="bg-blue-500"
-          />
-          <StatCard
-            icon={<FaUsers />}
-            label="Total Agents"
-            value={stats.totalAgents}
-            color="bg-green-500"
-          />
-          <StatCard
-            icon={<FaClock />}
-            label="Pending Approvals"
-            value={stats.pendingAgents}
-            color="bg-yellow-500"
-          />
-          <StatCard
-            icon={<FaEnvelope />}
-            label="New Inquiries"
-            value={stats.newInquiries}
-            color="bg-purple-500"
-          />
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="flex flex-wrap gap-3 mb-8">
-          <TabButton
-            active={activeTab === "leads"}
-            onClick={() => setActiveTab("leads")}
-            icon={<FaClipboardList />}
-            label="All Leads"
-            count={stats.totalLeads}
-          />
-          <TabButton
-            active={activeTab === "agents"}
-            onClick={() => setActiveTab("agents")}
-            icon={<FaUsers />}
-            label="Manage Agents"
-            count={stats.pendingAgents > 0 ? `${stats.totalAgents} (${stats.pendingAgents} pending)` : stats.totalAgents}
-          />
-          <TabButton
-            active={activeTab === "inquiries"}
-            onClick={() => setActiveTab("inquiries")}
-            icon={<FaEnvelope />}
-            label="Contact Inquiries"
-            count={stats.newInquiries > 0 ? `${inquiries.length} (${stats.newInquiries} new)` : inquiries.length}
-          />
-        </div>
-
-        {/* LEADS TAB */}
-        {activeTab === "leads" && (
-          <div className="space-y-6">
-            {/* Filters */}
+            {/* LEADS TAB */}
+            {activeTab === "leads" && (
+              <div className="space-y-6">
+                {/* Module Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <StatCard icon={<FaClipboardList />} label="Total Leads" value={leads.length} color="bg-blue-500" />
+                  <StatCard icon={<FaCheckCircle />} label="Won Leads" value={leads.filter(l => l.status === 'WON').length} color="bg-green-500" />
+                  <StatCard icon={<FaTimesCircle />} label="Lost Leads" value={leads.filter(l => l.status === 'LOST').length} color="bg-red-500" />
+                  <StatCard icon={<FaClock />} label="Pending Payments" value={leads.filter(l => l.payment_status === 'PENDING').length} color="bg-yellow-500" />
+                </div>
+                {/* Filters */}
             <div className="flex flex-wrap gap-4 bg-white/80 backdrop-blur-md p-4 rounded-2xl">
               <div className="flex items-center gap-2">
                 <FaFilter className="text-orange-500" />
@@ -709,247 +804,318 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* AGENTS TAB */}
-        {activeTab === "agents" && (
-          <div className="space-y-6">
-            {/* Create Agent Button */}
-            <button
-              onClick={() => setShowCreateAgent(true)}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all shadow-lg"
-            >
-              <FaUserPlus /> Create New Agent
-            </button>
-
-            {/* Agents List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {agents.map((agent) => (
-                <motion.div
-                  key={agent.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white/90 backdrop-blur-md p-6 rounded-[2rem] shadow-xl border border-white cursor-pointer hover:border-orange-300 hover:shadow-2xl transition-all"
-                  onClick={() => handleViewAgentLeads(agent)}
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900">{agent.full_name}</h3>
-                      <p className="text-sm text-gray-500">{agent.email}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {/* View Icon */}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleViewAgent(agent); }}
-                        className="p-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-600 hover:text-white transition-all"
-                        title="View Agent"
-                      >
-                        <FaEye size={14} />
-                      </button>
-                      {/* Edit Icon */}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleEditAgent(agent); }}
-                        className="p-2 text-orange-600 bg-orange-50 rounded-lg hover:bg-orange-600 hover:text-white transition-all"
-                        title="Edit Agent"
-                      >
-                        <FaEdit size={14} />
-                      </button>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(agent.status)}`}>
-                        {agent.status}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 mb-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <FaPhone className="text-orange-500" />
-                      <span>{agent.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <FaMapMarkerAlt className="text-orange-500" />
-                      <span>{agent.district}, {agent.state}</span>
-                    </div>
-                  </div>
-
-                  {/* Stats */}
-                  <div className="bg-gray-50 p-3 rounded-xl mb-4">
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div>
-                        <div className="text-lg font-bold text-gray-900">
-                          {leads.filter((l) => l.agent_id == agent.id).length}
-                        </div>
-                        <div className="text-xs text-gray-500">Leads</div>
-                      </div>
-                      <div>
-                        <div className="text-lg font-bold text-green-600">
-                          {leads.filter((l) => l.agent_id == agent.id && l.status === "WON").length}
-                        </div>
-                        <div className="text-xs text-gray-500">Won</div>
-                      </div>
-                      <div>
-                        <div className="text-lg font-bold text-blue-600">
-                          ₹
-                          {leads
-                            .filter((l) => l.agent_id == agent.id)
-                            .reduce((sum, l) => sum + (parseFloat(l.paid_amount) || 0), 0)
-                            .toFixed(0)}
-                        </div>
-                        <div className="text-xs text-gray-500">Revenue</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Tap hint */}
-                  <p className="text-xs text-center text-orange-400 font-bold mb-2 tracking-wide">TAP CARD TO VIEW ALL LEADS</p>
-
-                  {/* Status Actions */}
-                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                    {agent.status === "PENDING" && (
-                      <>
-                        <button
-                          onClick={() => updateAgentStatus(agent.id, "ACTIVE")}
-                          className="flex-1 py-2 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 transition-all flex items-center justify-center gap-1"
-                        >
-                          <FaCheckCircle /> Approve
-                        </button>
-                        <button
-                          onClick={() => updateAgentStatus(agent.id, "REJECTED")}
-                          className="flex-1 py-2 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 transition-all flex items-center justify-center gap-1"
-                        >
-                          <FaTimesCircle /> Reject
-                        </button>
-                      </>
-                    )}
-                    {agent.status === "ACTIVE" && (
-                      <button
-                        onClick={() => updateAgentStatus(agent.id, "INACTIVE")}
-                        className="flex-1 py-2 bg-gray-600 text-white rounded-lg font-bold text-sm hover:bg-gray-700 transition-all flex items-center justify-center gap-1"
-                      >
-                        <FaUserTimes /> Deactivate
-                      </button>
-                    )}
-                    {agent.status === "INACTIVE" && (
-                      <button
-                        onClick={() => updateAgentStatus(agent.id, "ACTIVE")}
-                        className="flex-1 py-2 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 transition-all flex items-center justify-center gap-1"
-                      >
-                        <FaUserCheck /> Activate
-                      </button>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* INQUIRIES TAB */}
-        {activeTab === "inquiries" && (
-          <div className="space-y-6">
-            {/* Info note */}
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl px-5 py-3 text-sm text-blue-700 font-medium flex items-start gap-2">
-              <span className="mt-0.5 text-blue-400">ℹ️</span>
-              <span>
-                <strong>Assign to Agent</strong> — marks the inquiry as contacted and links it to that agent for follow-up. The inquiry does <strong>not</strong> appear in the agent's leads automatically.
-                Use <strong>"Convert to Lead"</strong> to create an actual lead in the agent's account.
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6">
-              {inquiries.length === 0 ? (
-                <div className="text-center py-12 bg-white/80 backdrop-blur-md rounded-[2rem]">
-                  <p className="text-gray-500">No inquiries yet</p>
+            {activeTab === "agents" && (
+              <div className="space-y-6">
+                {/* Module Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <StatCard icon={<FaUsers />} label="Total Agents" value={stats.totalAgents} color="bg-blue-500" />
+                  <StatCard icon={<FaUserCheck />} label="Active Agents" value={agents.filter(a => a.status === 'ACTIVE').length} color="bg-green-500" />
+                  <StatCard icon={<FaClock />} label="Pending Approvals" value={stats.pendingAgents} color="bg-yellow-500" />
+                  <StatCard icon={<FaUserTimes />} label="Inactive Agents" value={agents.filter(a => a.status === 'INACTIVE').length} color="bg-gray-500" />
                 </div>
-              ) : (
-                inquiries.map((inquiry) => (
-                  <motion.div
-                    key={inquiry.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white/90 backdrop-blur-md p-6 rounded-[2rem] shadow-xl border border-white"
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <div className="flex items-center gap-3 mb-1">
-                          <h3 className="text-xl font-bold text-gray-900">{inquiry.name}</h3>
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(inquiry.status)}`}>
-                            {inquiry.status}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-500">{new Date(inquiry.created_at).toLocaleString()}</p>
-                      </div>
-                      {/* View Icon */}
-                      <button
-                        onClick={() => handleViewInquiry(inquiry)}
-                        className="p-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-600 hover:text-white transition-all"
-                        title="View Inquiry"
-                      >
-                        <FaEye size={14} />
-                      </button>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                      <div className="flex items-center gap-2">
-                        <FaPhone className="text-orange-500" />
-                        <span>{inquiry.phone}</span>
-                      </div>
-                      {inquiry.email && (
-                        <div className="flex items-center gap-2">
-                          <FaEnvelope className="text-orange-500" />
-                          <span>{inquiry.email}</span>
-                        </div>
-                      )}
-                      {inquiry.location && (
-                        <div className="flex items-center gap-2">
-                          <FaMapMarkerAlt className="text-orange-500" />
-                          <span>{inquiry.location}</span>
-                        </div>
-                      )}
-                    </div>
+                {/* Create Button */}
+                <button
+                  onClick={() => setShowCreateAgent(true)}
+                  className="px-6 py-3 bg-green-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-green-700 transition-all shadow-lg"
+                >
+                  <FaUserPlus /> Create New Agent
+                </button>
 
-                    <div className="bg-gray-50 p-4 rounded-xl mb-4">
-                      <div className="text-xs font-bold text-gray-500 uppercase mb-1">Service Required</div>
-                      <div className="font-medium">{inquiry.service_required}</div>
+                {/* Filters */}
+                <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+                  <div className="flex justify-between items-center mb-6">
+                    <h4 className="text-lg font-black text-gray-900">Filter Agents</h4>
+                    <div className="relative group w-72">
+                      <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors" />
+                      <input
+                        type="text"
+                        placeholder="Search agent name..."
+                        value={agentFilters.search}
+                        onChange={(e) => {
+                          const newFilters = { ...agentFilters, search: e.target.value };
+                          setAgentFilters(newFilters);
+                          fetchAgents(newFilters);
+                        }}
+                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-medium outline-none focus:border-orange-500 focus:bg-white transition-all shadow-sm"
+                      />
                     </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <select
+                      value={agentFilters.state_id}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        const newFilters = { ...agentFilters, state_id: id, district_id: "", mandal: "", village: "" };
+                        setAgentFilters(newFilters);
+                        fetchAgents(newFilters);
+                        if (id) fetchDistricts(id);
+                        else { setDistricts([]); setMandals([]); setVillages([]); }
+                      }}
+                      className="w-full py-2.5 px-4 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:border-orange-500 shadow-sm appearance-none cursor-pointer"
+                    >
+                      <option value="">All States</option>
+                      {states.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    <select
+                      value={agentFilters.district_id}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        const newFilters = { ...agentFilters, district_id: id, mandal: "", village: "" };
+                        setAgentFilters(newFilters);
+                        fetchAgents(newFilters);
+                        if (id) fetchMandals(agentFilters.state_id, id);
+                        else { setMandals([]); setVillages([]); }
+                      }}
+                      disabled={!agentFilters.state_id}
+                      className="w-full py-2.5 px-4 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:border-orange-500 shadow-sm appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="">All Districts</option>
+                      {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                    <select
+                      value={agentFilters.mandal}
+                      onChange={(e) => {
+                        const name = e.target.value;
+                        const newFilters = { ...agentFilters, mandal: name, village: "" };
+                        setAgentFilters(newFilters);
+                        fetchAgents(newFilters);
+                        if (name) fetchVillages(agentFilters.state_id, agentFilters.district_id, name);
+                        else setVillages([]);
+                      }}
+                      disabled={!agentFilters.district_id}
+                      className="w-full py-2.5 px-4 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:border-orange-500 shadow-sm appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="">All Mandals</option>
+                      {mandals.map((m, i) => <option key={i} value={m.mandal}>{m.mandal}</option>)}
+                    </select>
+                    <select
+                      value={agentFilters.village}
+                      onChange={(e) => {
+                        const name = e.target.value;
+                        const newFilters = { ...agentFilters, village: name };
+                        setAgentFilters(newFilters);
+                        fetchAgents(newFilters);
+                      }}
+                      disabled={!agentFilters.mandal}
+                      className="w-full py-2.5 px-4 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:border-orange-500 shadow-sm appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="">All Villages</option>
+                      {villages.map((v, i) => <option key={i} value={v.village}>{v.village}</option>)}
+                    </select>
+                    <button
+                      onClick={() => {
+                        const cleared = { search: "", state_id: "", district_id: "", mandal: "", village: "" };
+                        setAgentFilters(cleared);
+                        fetchAgents(cleared);
+                        setDistricts([]);
+                        setMandals([]);
+                        setVillages([]);
+                      }}
+                      className="w-full py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-all flex items-center justify-center gap-2 shadow-sm"
+                    >
+                      <FaTimes /> Clear Filters
+                    </button>
+                  </div>
+                </div>
 
-                    <p className="text-gray-700 mb-4 line-clamp-2">{inquiry.message}</p>
+                <div className="bg-white rounded-3xl overflow-hidden shadow-xl border border-gray-100">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-gray-50/50 text-left border-b border-gray-100">
+                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Agent</th>
+                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact</th>
+                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Location</th>
+                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Performance</th>
+                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {agents.map((agent) => (
+                          <tr key={agent.id} className="hover:bg-gray-50/30 transition-colors group">
+                            <td className="p-5 cursor-pointer" onClick={() => handleViewAgentLeads(agent)}>
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-600 font-bold overflow-hidden border-2 border-white shadow-sm transition-transform group-hover:scale-105">
+                                  {agent.profile_photo ? (
+                                    <img src={`${API_URL.replace(/\/api\/?$/, "")}/${agent.profile_photo}`} alt="" className="w-full h-full object-cover" />
+                                  ) : agent.full_name?.charAt(0)}
+                                </div>
+                                <div>
+                                  <div className="font-black text-gray-900 group-hover:text-orange-600 transition-colors">{agent.full_name}</div>
+                                  <div className="text-[10px] text-gray-400 font-medium">{agent.email}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-5">
+                              <div className="flex items-center gap-2 text-sm font-bold text-gray-700">
+                                <FaPhone className="text-orange-500 text-xs" /> {agent.phone}
+                              </div>
+                            </td>
+                            <td className="p-5">
+                              <div className="flex items-start gap-1">
+                                <FaMapMarkerAlt className="text-orange-500 text-xs mt-1" />
+                                <div>
+                                  <div className="text-xs font-black text-gray-900">{agent.mandal || 'N/A'}, {agent.village || 'N/A'}</div>
+                                  <div className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{agent.district?.name}, {agent.state?.name}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-5">
+                              <div className="flex items-center gap-4">
+                                <div>
+                                  <div className="text-[10px] text-gray-400 font-bold uppercase">Leads</div>
+                                  <div className="text-sm font-black text-gray-900">{leads.filter(l => l.agent_id == agent.id).length}</div>
+                                </div>
+                                <div>
+                                  <div className="text-[10px] text-gray-400 font-bold uppercase">Won</div>
+                                  <div className="text-sm font-black text-green-600">{leads.filter(l => l.agent_id == agent.id && l.status === 'WON').length}</div>
+                                </div>
+                                <div>
+                                  <div className="text-[10px] text-gray-400 font-bold uppercase">Revenue</div>
+                                  <div className="text-sm font-black text-blue-600">
+                                    ₹{leads.filter(l => l.agent_id == agent.id).reduce((sum, l) => sum + (parseFloat(l.paid_amount) || 0), 0).toLocaleString()}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-5">
+                              <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                agent.status === "ACTIVE" ? "bg-green-100 text-green-600" :
+                                agent.status === "PENDING" ? "bg-yellow-100 text-yellow-600" : "bg-red-100 text-red-600"
+                              }`}>
+                                {agent.status}
+                              </span>
+                            </td>
+                            <td className="p-5 text-right">
+                              <div className="flex justify-end gap-2">
+                                <button onClick={() => { setViewAgent(agent); setShowViewAgent(true); }} className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm" title="View Details"><FaEye size={14} /></button>
+                                <button onClick={() => handleEditAgent(agent)} className="p-2.5 bg-orange-50 text-orange-600 rounded-xl hover:bg-orange-600 hover:text-white transition-all shadow-sm" title="Edit Agent"><FaEdit size={14} /></button>
+                                {agent.status === 'PENDING' ? (
+                                  <>
+                                    <button
+                                      onClick={() => updateAgentStatus(agent.id, "ACTIVE")}
+                                      className="p-2.5 bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all shadow-sm"
+                                      title="Accept Agent"
+                                    >
+                                      <FaCheck size={14} />
+                                    </button>
+                                    <button
+                                      onClick={() => updateAgentStatus(agent.id, "REJECTED")}
+                                      className="p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                      title="Reject Agent"
+                                    >
+                                      <FaTimes size={14} />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={() => toggleAgentStatus(agent.id, agent.status)}
+                                    className={`p-2.5 rounded-xl transition-all shadow-sm ${
+                                      agent.status === 'ACTIVE' 
+                                        ? "bg-red-50 text-red-600 hover:bg-red-600 hover:text-white" 
+                                        : "bg-green-50 text-green-600 hover:bg-green-600 hover:text-white"
+                                    }`}
+                                    title={agent.status === 'ACTIVE' ? "Deactivate" : "Activate"}
+                                  >
+                                    {agent.status === 'ACTIVE' ? <FaUserTimes size={14} /> : <FaUserCheck size={14} />}
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
 
-                    {/* Actions */}
-                    <div className="flex flex-wrap gap-3">
-                      {inquiry.status === "NEW" && (
-                        <>
-                          <select
-                            onChange={(e) => e.target.value && assignInquiry(inquiry.id, e.target.value)}
-                            className="p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm"
-                            defaultValue=""
-                          >
-                            <option value="">Assign to Agent...</option>
-                            {activeAgents.map((agent) => (
-                              <option key={agent.id} value={agent.id}>
-                                {agent.full_name}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            onClick={() => convertInquiryToLead(inquiry.id)}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 transition-all flex items-center gap-1"
-                          >
-                            <FaExchangeAlt /> Convert to Lead
-                          </button>
-                        </>
-                      )}
-                      {inquiry.assigned_agent_id && (
-                        <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">
-                          <FaUserCheck />
-                          Assigned to: {agents.find((a) => a.id === inquiry.assigned_agent_id)?.full_name}
-                          <span className="text-xs text-blue-400 ml-1">(follow-up only — use Convert to Lead to add to agent's leads)</span>
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
+            {/* INQUIRIES TAB */}
+            {activeTab === "inquiries" && (
+              <div className="space-y-6">
+                {/* Module Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <StatCard icon={<FaEnvelope />} label="Total Inquiries" value={inquiries.length} color="bg-blue-500" />
+                  <StatCard icon={<FaEnvelopeOpenText />} label="New Inquiries" value={stats.newInquiries} color="bg-purple-500" />
+                  <StatCard icon={<FaCheckCircle />} label="Converted" value={inquiries.filter(i => i.status === 'CONVERTED').length} color="bg-green-500" />
+                  <StatCard icon={<FaTimesCircle />} label="Rejected" value={inquiries.filter(i => i.status === 'REJECTED').length} color="bg-red-500" />
+                </div>
+                <div className="bg-white rounded-3xl overflow-hidden shadow-xl border border-gray-100">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-gray-50/50 text-left border-b border-gray-100">
+                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">ID</th>
+                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact Details</th>
+                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Service</th>
+                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Location</th>
+                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Assignment / Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {inquiries.map((inquiry) => (
+                          <tr key={inquiry.id} className="hover:bg-gray-50/30 transition-colors group">
+                            <td className="p-5 text-sm font-black text-gray-400">#{inquiry.id}</td>
+                            <td className="p-5">
+                              <div className="font-black text-gray-900">{inquiry.name}</div>
+                              <div className="flex items-center gap-1 text-[10px] text-orange-600 font-bold">
+                                <FaPhone size={8} /> {inquiry.phone}
+                              </div>
+                            </td>
+                            <td className="p-5">
+                              <div className="text-sm font-black text-gray-900">{inquiry.service_required}</div>
+                              <div className="text-[10px] text-gray-400 italic">"{inquiry.message?.substring(0, 30)}..."</div>
+                            </td>
+                            <td className="p-5">
+                              <div className="text-xs font-bold text-gray-700">{inquiry.location || 'Madanapalli'}</div>
+                            </td>
+                            <td className="p-5">
+                              <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                inquiry.status === "NEW" ? "bg-blue-100 text-blue-600" :
+                                inquiry.status === "CONTACTED" ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-600"
+                              }`}>
+                                {inquiry.status}
+                              </span>
+                            </td>
+                            <td className="p-5">
+                              <div className="text-[10px] text-gray-500 font-bold uppercase">
+                                {new Date(inquiry.created_at).toLocaleDateString()}<br/>
+                                {new Date(inquiry.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              </div>
+                            </td>
+                            <td className="p-5">
+                              <div className="flex items-center gap-2">
+                                {inquiry.assigned_agent_id ? (
+                                  <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-[10px] font-black">
+                                    <FaUser size={10} /> {agents.find(a => a.id === inquiry.assigned_agent_id)?.full_name}
+                                  </div>
+                                ) : (
+                                  <select
+                                    onChange={(e) => e.target.value && assignInquiry(inquiry.id, e.target.value)}
+                                    className="bg-orange-50 text-orange-700 border-none rounded-lg px-3 py-1.5 text-[10px] font-black outline-none appearance-none cursor-pointer hover:bg-orange-100 transition-all"
+                                  >
+                                    <option value="">Assign Agent...</option>
+                                    {agents.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
+                                  </select>
+                                )}
+                                <button onClick={() => handleViewInquiry(inquiry)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all">
+                                  <FaEye size={12} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
 
         {/* Agent Leads Modal */}
         {showAgentLeads && selectedAgent && (
@@ -974,20 +1140,20 @@ export default function AdminDashboard() {
               </div>
 
               {/* Agent summary */}
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="bg-blue-50 p-4 rounded-2xl text-center">
-                  <p className="text-2xl font-black text-blue-600">{leads.filter((l) => l.agent_id == selectedAgent.id).length}</p>
-                  <p className="text-xs text-gray-500 font-bold uppercase">Total</p>
+              <div className="grid grid-cols-3 gap-6 mb-8">
+                <div className="bg-blue-50/50 p-6 rounded-[2rem] text-center border border-blue-100 shadow-sm shadow-blue-50">
+                  <p className="text-3xl font-black text-blue-600 mb-1">{leads.filter((l) => l.agent_id == selectedAgent.id).length}</p>
+                  <p className="text-[10px] text-blue-400 font-black uppercase tracking-widest">Total Leads</p>
                 </div>
-                <div className="bg-green-50 p-4 rounded-2xl text-center">
-                  <p className="text-2xl font-black text-green-600">{leads.filter((l) => l.agent_id == selectedAgent.id && l.status === "WON").length}</p>
-                  <p className="text-xs text-gray-500 font-bold uppercase">Won</p>
+                <div className="bg-green-50/50 p-6 rounded-[2rem] text-center border border-green-100 shadow-sm shadow-green-50">
+                  <p className="text-3xl font-black text-green-600 mb-1">{leads.filter((l) => l.agent_id == selectedAgent.id && l.status === "WON").length}</p>
+                  <p className="text-[10px] text-green-400 font-black uppercase tracking-widest">Won Deals</p>
                 </div>
-                <div className="bg-orange-50 p-4 rounded-2xl text-center">
-                  <p className="text-2xl font-black text-orange-600">
+                <div className="bg-orange-50/50 p-6 rounded-[2rem] text-center border border-orange-100 shadow-sm shadow-orange-50">
+                  <p className="text-3xl font-black text-orange-600 mb-1">
                     ₹{leads.filter((l) => l.agent_id == selectedAgent.id).reduce((sum, l) => sum + (parseFloat(l.paid_amount) || 0), 0).toFixed(0)}
                   </p>
-                  <p className="text-xs text-gray-500 font-bold uppercase">Revenue</p>
+                  <p className="text-[10px] text-orange-400 font-black uppercase tracking-widest">Total Revenue</p>
                 </div>
               </div>
 
@@ -999,15 +1165,15 @@ export default function AdminDashboard() {
               ) : (
                 <div className="overflow-x-auto rounded-2xl border border-gray-100">
                   <table className="w-full">
-                    <thead className="bg-orange-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-orange-800 uppercase">ID</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-orange-800 uppercase">Client</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-orange-800 uppercase">Service</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-orange-800 uppercase">Status</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-orange-800 uppercase">Payment</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-orange-800 uppercase">Amount</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-orange-800 uppercase">Date</th>
+                    <thead className="bg-orange-50/50">
+                      <tr className="text-left border-b border-orange-100">
+                        <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">ID</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Client</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Service</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Status</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Payment</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Amount</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Date</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -1048,7 +1214,7 @@ export default function AdminDashboard() {
 
               <button
                 onClick={() => setShowAgentLeads(false)}
-                className="w-full py-4 bg-gray-200 text-gray-700 rounded-2xl font-bold hover:bg-gray-300 transition-all mt-6"
+                className="w-full py-5 bg-gray-100 text-gray-500 rounded-[2rem] font-black hover:bg-gray-200 transition-all mt-8 uppercase tracking-[0.2em] text-xs shadow-inner"
               >
                 Close
               </button>
@@ -1136,93 +1302,202 @@ export default function AdminDashboard() {
 
         {/* Create Agent Modal */}
         {showCreateAgent && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-white rounded-[2rem] p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              className="bg-white rounded-[2.5rem] p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl relative"
             >
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-black text-gray-900">Create New Agent</h3>
-                <button
-                  onClick={() => setShowCreateAgent(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <FaTimesCircle className="text-2xl text-gray-400" />
-                </button>
+              <button onClick={() => setShowCreateAgent(false)} className="absolute top-6 right-8 text-gray-400 hover:text-gray-600">
+                <FaTimes size={24} />
+              </button>
+
+              <h2 className="text-3xl font-black text-gray-900 mb-8 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600"><FaUserPlus size={20} /></div>
+                Create New Agent
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name *</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaUser size={14} /></div>
+                    <input
+                      type="text"
+                      placeholder="Enter full name"
+                      value={agentForm.fullName}
+                      onChange={(e) => setAgentForm({ ...agentForm, fullName: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email *</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaEnvelope size={14} /></div>
+                    <input
+                      type="email"
+                      placeholder="Enter email"
+                      value={agentForm.email}
+                      onChange={(e) => setAgentForm({ ...agentForm, email: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Phone *</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaPhone size={14} /></div>
+                    <input
+                      type="tel"
+                      placeholder="Enter phone number"
+                      value={agentForm.phone}
+                      onChange={(e) => setAgentForm({ ...agentForm, phone: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Alternate Number</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaPhone size={14} /></div>
+                    <input
+                      type="tel"
+                      placeholder="Enter alternate number"
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">State</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
+                    <select
+                      value={agentForm.state_id || ""}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        const name = states.find(s => s.id == id)?.name;
+                        setAgentForm({ ...agentForm, state_id: id, state: name });
+                        fetchDistricts(id);
+                      }}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none"
+                    >
+                      <option value="">Select State</option>
+                      {states.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">District</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
+                    <select
+                      value={agentForm.district_id || ""}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        const name = districts.find(d => d.id == id)?.name;
+                        setAgentForm({ ...agentForm, district_id: id, district: name });
+                        fetchMandals(agentForm.state_id, id);
+                      }}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none disabled:opacity-50"
+                      disabled={!agentForm.state_id}
+                    >
+                      <option value="">Select District</option>
+                      {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Mandal</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
+                    <input
+                      type="text"
+                      placeholder="Enter mandal"
+                      value={agentForm.mandal}
+                      onChange={(e) => setAgentForm({ ...agentForm, mandal: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Village</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
+                    <input
+                      type="text"
+                      placeholder="Enter village"
+                      value={agentForm.village}
+                      onChange={(e) => setAgentForm({ ...agentForm, village: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Aadhar Number</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaIdCard size={14} /></div>
+                    <input
+                      type="text"
+                      placeholder="Enter Aadhar number"
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Password *</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaLock size={14} /></div>
+                    <input
+                      type="password"
+                      placeholder="Enter password"
+                      value={agentForm.password}
+                      onChange={(e) => setAgentForm({ ...agentForm, password: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input
-                  type="text"
-                  placeholder="Full Name *"
-                  value={agentForm.fullName}
-                  onChange={(e) => setAgentForm({ ...agentForm, fullName: e.target.value })}
-                  className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none"
-                />
-                <input
-                  type="email"
-                  placeholder="Email *"
-                  value={agentForm.email}
-                  onChange={(e) => setAgentForm({ ...agentForm, email: e.target.value })}
-                  className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none"
-                />
-                <input
-                  type="tel"
-                  placeholder="Phone *"
-                  value={agentForm.phone}
-                  onChange={(e) => setAgentForm({ ...agentForm, phone: e.target.value })}
-                  className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none"
-                />
-                <input
-                  type="password"
-                  placeholder="Password *"
-                  value={agentForm.password}
-                  onChange={(e) => setAgentForm({ ...agentForm, password: e.target.value })}
-                  className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none"
-                />
-                <input
-                  type="text"
-                  placeholder="State"
-                  value={agentForm.state}
-                  onChange={(e) => setAgentForm({ ...agentForm, state: e.target.value })}
-                  className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none"
-                />
-                <input
-                  type="text"
-                  placeholder="District"
-                  value={agentForm.district}
-                  onChange={(e) => setAgentForm({ ...agentForm, district: e.target.value })}
-                  className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none"
-                />
-                <input
-                  type="text"
-                  placeholder="Mandal"
-                  value={agentForm.mandal}
-                  onChange={(e) => setAgentForm({ ...agentForm, mandal: e.target.value })}
-                  className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none"
-                />
-                <input
-                  type="text"
-                  placeholder="Village"
-                  value={agentForm.village}
-                  onChange={(e) => setAgentForm({ ...agentForm, village: e.target.value })}
-                  className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none"
-                />
+              <div className="mt-8 space-y-4">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Profile Photo</label>
+                <div className="flex items-center gap-6">
+                  <div className="w-20 h-20 rounded-full bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400 overflow-hidden">
+                    {agentForm.profilePhoto ? (
+                      <img src={URL.createObjectURL(agentForm.profilePhoto)} className="w-full h-full object-cover" />
+                    ) : (
+                      <FaUser size={32} />
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    onChange={(e) => setAgentForm({ ...agentForm, profilePhoto: e.target.files[0] })}
+                    className="text-xs font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-orange-50 file:text-orange-600 hover:file:bg-orange-100 transition-all"
+                  />
+                </div>
               </div>
 
-              <div className="flex gap-4 mt-6">
+              <div className="flex gap-4 mt-10">
                 <button
                   onClick={createAgent}
                   disabled={loading}
-                  className="flex-1 py-4 bg-orange-600 text-white rounded-2xl font-bold hover:bg-orange-700 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+                  className="flex-1 py-4 bg-orange-600 text-white rounded-2xl font-black shadow-lg shadow-orange-200 hover:bg-orange-700 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
                 >
                   {loading ? <FaSpinner className="animate-spin" /> : <FaUserPlus />}
-                  {loading ? "Creating..." : "Create Agent"}
+                  {loading ? "Creating Agent..." : "Create Agent"}
                 </button>
                 <button
                   onClick={() => setShowCreateAgent(false)}
-                  className="px-8 py-4 bg-gray-200 text-gray-700 rounded-2xl font-bold hover:bg-gray-300 transition-all"
+                  className="px-10 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black hover:bg-gray-200 transition-all"
                 >
                   Cancel
                 </button>
@@ -1252,17 +1527,20 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 {/* Header with status */}
                 <div className="flex items-center gap-4 mb-6">
-                  <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center text-white text-3xl font-bold">
-                    {viewAgent.full_name?.charAt(0).toUpperCase()}
+                  <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center text-white text-3xl font-bold overflow-hidden border-4 border-white shadow-md">
+                    {viewAgent.profile_photo ? (
+                      <img src={`${API_URL.replace(/\/api\/?$/, "")}/${viewAgent.profile_photo}`} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      viewAgent.full_name?.charAt(0).toUpperCase()
+                    )}
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900">{viewAgent.full_name}</h2>
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                      viewAgent.status === 'ACTIVE' ? 'bg-green-100 text-green-600' :
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${viewAgent.status === 'ACTIVE' ? 'bg-green-100 text-green-600' :
                       viewAgent.status === 'PENDING' ? 'bg-yellow-100 text-yellow-600' :
-                      viewAgent.status === 'REJECTED' ? 'bg-red-100 text-red-600' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>
+                        viewAgent.status === 'REJECTED' ? 'bg-red-100 text-red-600' :
+                          'bg-gray-100 text-gray-600'
+                      }`}>
                       {viewAgent.status}
                     </span>
                     <p className="text-sm text-gray-500 capitalize mt-1">{viewAgent.role}</p>
@@ -1290,8 +1568,7 @@ export default function AdminDashboard() {
                     <p className="text-gray-900">
                       {viewAgent.village && `${viewAgent.village}, `}
                       {viewAgent.mandal && `${viewAgent.mandal}, `}
-                      {viewAgent.district && `${viewAgent.district}, `}
-                      {viewAgent.state}
+                      {viewAgent.district?.name || viewAgent.district_id}, {viewAgent.state?.name || viewAgent.state_id}
                     </p>
                   </div>
                   {viewAgent.aadhar_number && (
@@ -1341,72 +1618,196 @@ export default function AdminDashboard() {
 
         {/* Edit Agent Modal */}
         {showEditAgent && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-white rounded-[2rem] p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              className="bg-white rounded-[2.5rem] p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl relative"
             >
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-black text-gray-900">Edit Agent</h3>
-                <button onClick={() => setShowEditAgent(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                  <FaTimesCircle className="text-2xl text-gray-400" />
-                </button>
-              </div>
+              <button onClick={() => setShowEditAgent(false)} className="absolute top-6 right-8 text-gray-400 hover:text-gray-600">
+                <FaTimes size={24} />
+              </button>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="text" placeholder="Full Name *" value={editAgentForm.fullName}
-                  onChange={(e) => setEditAgentForm({ ...editAgentForm, fullName: e.target.value })}
-                  className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none" />
-                <input type="email" placeholder="Email *" value={editAgentForm.email}
-                  onChange={(e) => setEditAgentForm({ ...editAgentForm, email: e.target.value })}
-                  className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none" />
-                <input type="tel" placeholder="Phone *" value={editAgentForm.phone}
-                  onChange={(e) => setEditAgentForm({ ...editAgentForm, phone: e.target.value })}
-                  className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none" />
-                <input type="tel" placeholder="Alternate Phone" value={editAgentForm.alternatePhone}
-                  onChange={(e) => setEditAgentForm({ ...editAgentForm, alternatePhone: e.target.value })}
-                  className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none" />
-                <input type="text" placeholder="State" value={editAgentForm.state}
-                  onChange={(e) => setEditAgentForm({ ...editAgentForm, state: e.target.value })}
-                  className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none" />
-                <input type="text" placeholder="District" value={editAgentForm.district}
-                  onChange={(e) => setEditAgentForm({ ...editAgentForm, district: e.target.value })}
-                  className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none" />
-                <input type="text" placeholder="Mandal" value={editAgentForm.mandal}
-                  onChange={(e) => setEditAgentForm({ ...editAgentForm, mandal: e.target.value })}
-                  className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none" />
-                <input type="text" placeholder="Village" value={editAgentForm.village}
-                  onChange={(e) => setEditAgentForm({ ...editAgentForm, village: e.target.value })}
-                  className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none" />
-                <input type="text" placeholder="Aadhar Number" value={editAgentForm.aadharNumber}
-                  onChange={(e) => setEditAgentForm({ ...editAgentForm, aadharNumber: e.target.value })}
-                  className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none" />
+              <h2 className="text-3xl font-black text-gray-900 mb-8 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600"><FaEdit size={20} /></div>
+                Edit Agent
+              </h2>
 
-                {/* Status Change */}
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wider ml-1">Account Status</label>
-                  <select
-                    value={editAgentForm.status}
-                    onChange={(e) => setEditAgentForm({ ...editAgentForm, status: e.target.value })}
-                    className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 outline-none"
-                  >
-                    <option value="PENDING">Pending</option>
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Inactive</option>
-                    <option value="REJECTED">Rejected</option>
-                  </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name *</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaUser size={14} /></div>
+                    <input
+                      type="text"
+                      placeholder="Enter full name"
+                      value={editAgentForm.fullName}
+                      onChange={(e) => setEditAgentForm({ ...editAgentForm, fullName: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email *</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaEnvelope size={14} /></div>
+                    <input
+                      type="email"
+                      placeholder="Enter email"
+                      value={editAgentForm.email}
+                      onChange={(e) => setEditAgentForm({ ...editAgentForm, email: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Phone *</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaPhone size={14} /></div>
+                    <input
+                      type="tel"
+                      placeholder="Enter phone number"
+                      value={editAgentForm.phone}
+                      onChange={(e) => setEditAgentForm({ ...editAgentForm, phone: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Alternate Phone</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaPhone size={14} /></div>
+                    <input
+                      type="tel"
+                      placeholder="Enter alternate phone"
+                      value={editAgentForm.alternatePhone}
+                      onChange={(e) => setEditAgentForm({ ...editAgentForm, alternatePhone: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">State</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
+                    <select
+                      value={editAgentForm.state_id || ""}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        const name = states.find(s => s.id == id)?.name;
+                        setEditAgentForm({ ...editAgentForm, state_id: id, state: name });
+                        fetchDistricts(id);
+                      }}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none"
+                    >
+                      <option value="">Select State</option>
+                      {states.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">District</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
+                    <select
+                      value={editAgentForm.district_id || ""}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        const name = districts.find(d => d.id == id)?.name;
+                        setEditAgentForm({ ...editAgentForm, district_id: id, district: name });
+                        fetchMandals(editAgentForm.state_id, id);
+                      }}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none disabled:opacity-50"
+                      disabled={!editAgentForm.state_id}
+                    >
+                      <option value="">Select District</option>
+                      {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Mandal</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
+                    <input
+                      type="text"
+                      placeholder="Enter mandal"
+                      value={editAgentForm.mandal}
+                      onChange={(e) => setEditAgentForm({ ...editAgentForm, mandal: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Village</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
+                    <input
+                      type="text"
+                      placeholder="Enter village"
+                      value={editAgentForm.village}
+                      onChange={(e) => setEditAgentForm({ ...editAgentForm, village: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaCheckCircle size={14} /></div>
+                    <select
+                      value={editAgentForm.status}
+                      onChange={(e) => setEditAgentForm({ ...editAgentForm, status: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none"
+                    >
+                      <option value="ACTIVE">ACTIVE</option>
+                      <option value="PENDING">PENDING</option>
+                      <option value="INACTIVE">INACTIVE</option>
+                      <option value="REJECTED">REJECTED</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-4 mt-6">
-                <button onClick={updateAgent} disabled={loading}
-                  className="flex-1 py-4 bg-orange-600 text-white rounded-2xl font-bold hover:bg-orange-700 transition-all disabled:opacity-70 flex items-center justify-center gap-2">
-                  {loading ? <FaSpinner className="animate-spin" /> : <FaEdit />}
-                  {loading ? "Updating..." : "Update Agent"}
+              <div className="mt-8 space-y-4">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Profile Photo</label>
+                <div className="flex items-center gap-6">
+                  <div className="w-20 h-20 rounded-full bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400 overflow-hidden">
+                    {editAgentForm.profilePhoto ? (
+                      <img src={typeof editAgentForm.profilePhoto === 'string' ? `${API_URL.replace(/\/api\/?$/, "")}/${editAgentForm.profilePhoto}` : URL.createObjectURL(editAgentForm.profilePhoto)} className="w-full h-full object-cover" />
+                    ) : (
+                      <FaUser size={32} />
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    onChange={(e) => setEditAgentForm({ ...editAgentForm, profilePhoto: e.target.files[0] })}
+                    className="text-xs font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-orange-50 file:text-orange-600 hover:file:bg-orange-100 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-4 mt-10">
+                <button
+                  onClick={updateAgent}
+                  disabled={loading}
+                  className="flex-1 py-4 bg-orange-600 text-white rounded-2xl font-black shadow-lg shadow-orange-200 hover:bg-orange-700 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+                >
+                  {loading ? <FaSpinner className="animate-spin" /> : <FaCheckCircle />}
+                  {loading ? "Updating Agent..." : "Update Agent"}
                 </button>
-                <button onClick={() => setShowEditAgent(false)}
-                  className="px-8 py-4 bg-gray-200 text-gray-700 rounded-2xl font-bold hover:bg-gray-300 transition-all">
+                <button
+                  onClick={() => setShowEditAgent(false)}
+                  className="px-10 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black hover:bg-gray-200 transition-all"
+                >
                   Cancel
                 </button>
               </div>
@@ -1667,7 +2068,9 @@ export default function AdminDashboard() {
               </div>
             </motion.div>
           </div>
-        )}
+            )}
+          </div>
+        </main>
       </div>
     </div>
   );
@@ -1691,11 +2094,10 @@ function TabButton({ active, onClick, icon, label, count }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${
-        active
-          ? "bg-orange-600 text-white shadow-lg"
-          : "bg-white text-gray-700 hover:bg-gray-100 shadow-md"
-      }`}
+      className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${active
+        ? "bg-orange-600 text-white shadow-lg"
+        : "bg-white text-gray-700 hover:bg-gray-100 shadow-md"
+        }`}
     >
       {icon}
       <span>{label}</span>

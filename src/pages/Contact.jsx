@@ -40,7 +40,7 @@ const contactDetails = [
   },
 ]
 
-const API_URL = "http://localhost:3000/api"; // SK Marketings Backend
+const API_URL = import.meta.env.VITE_API_URL; // SK Marketings Backend
 
 function Contact() {
   const [form, setForm] = useState({ name: '', phone: '', email: '', service: '', message: '', location: '' })

@@ -20,6 +20,8 @@ import AdminDashboard from './pages/AdminDashboard'
 import AgentDashboard from './pages/AgentDashboard'
 import SignUp from './pages/SignUp'
 import ViewPage from './pages/ViewPage'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 
 function App() {
   const location = useLocation()
@@ -56,6 +58,10 @@ function App() {
             <Route path="/view/:id" element={<ViewPage />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/user-signup" element={<SignUp />} />
+            
+            {/* Password Reset Routes */}
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
 
           </Routes>
         </AnimatePresence>

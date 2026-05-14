@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   FaPhone,
   FaUser,
@@ -18,12 +18,25 @@ import {
   FaCheckCircle,
   FaClock,
   FaSpinner,
+  FaClipboardList,
+  FaTimes,
 } from "react-icons/fa";
+import Profile from "./Profile";
+import Sidebar from "../components/Sidebar";
+import DashboardHeader from "../components/DashboardHeader";
+import Dashboard from "../components/Dashboard";
 
-const API_URL = "http://localhost:3000/api";
+const API_URL = import.meta.env.VITE_API_URL;
+const BASE_URL = API_URL ? API_URL.replace(/\/api\/?$/, "") : "";
+
+const getImageUrl = (path) => {
+  if (!path) return null;
+  return `${BASE_URL}/${path.replace(/\\/g, "/")}`;
+};
 
 export default function AgentDashboard() {
-  const [activeTab, setActiveTab] = useState("leads"); // leads, create
+  const [activeTab, setActiveTab] = useState("dashboard"); // dashboard, leads, create, profile
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -51,6 +64,11 @@ export default function AgentDashboard() {
   });
 
   const [editingLead, setEditingLead] = useState(null);
+  const [selectedLead, setSelectedLead] = useState(null);
+
+  const toggleSidebar = useCallback((open) => {
+    setIsSidebarOpen(open);
+  }, []);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -60,8 +78,31 @@ export default function AgentDashboard() {
       return;
     }
     setUser(JSON.parse(storedUser));
+    fetchUserProfile();
     fetchLeads();
   }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+        localStorage.setItem("user", JSON.stringify(data.user));
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "leads" && localStorage.getItem("token")) {
+      fetchLeads();
+    }
+  }, [activeTab]);
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -233,73 +274,81 @@ export default function AgentDashboard() {
   };
 
   return (
-    <div className="min-h-screen mt-24 relative overflow-hidden">
-      {/* Background */}
-      <div
-        className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `url('https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2669&auto=format&fit=crop')`,
-        }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-b from-orange-500/80 via-white/95 to-white" />
-      </div>
-
-      {/* Content */}
-      <div className="max-w-7xl mx-auto p-6 relative z-10">
-        {/* Header */}
-        <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2">
-              <FaUser /> Agent Portal
-            </div>
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight">
-              Welcome, <span className="text-orange-600">{user?.full_name || "Agent"}</span>
-            </h2>
-            <p className="text-gray-600 mt-2">Manage your leads and track conversions</p>
-          </div>
-
-          <div className="flex gap-3">
+    <div className="flex h-screen bg-[#f8fafc] overflow-hidden relative">
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        isOpen={isSidebarOpen}
+        onClose={() => toggleSidebar(false)}
+      />
+      
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <DashboardHeader 
+          title={activeTab === 'leads' ? 'My Leads' : activeTab === 'create' ? 'Create New Lead' : 'My Profile'} 
+          onMenuClick={() => toggleSidebar(true)}
+        />
+        
+        <main className="flex-1 overflow-y-auto p-4 pb-24 md:p-6 custom-scrollbar">
+          {/* Action Buttons (now smaller) */}
+          <div className="flex gap-3 mb-6">
             <button
-              onClick={() => {
-                resetForm();
-                setActiveTab("create");
-              }}
-              className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-xl font-bold hover:bg-orange-700 transition-all shadow-lg"
+              onClick={() => setActiveTab(activeTab === "create" ? "leads" : "create")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold transition-all shadow-md text-[10px] ${
+                activeTab === "create"
+                  ? "bg-gray-800 text-white hover:bg-gray-900"
+                  : "bg-orange-600 text-white hover:bg-orange-700 shadow-orange-100"
+              }`}
             >
-              <FaPlus /> New Lead
+              {activeTab === "create" ? (
+                <>
+                  <FaClipboardList size={10} /> View All Leads
+                </>
+              ) : (
+                <>
+                  <FaPlus size={10} /> Create New Lead
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab("leads")}
+              className={`px-4 py-2 rounded-lg font-bold transition-all text-[10px] ${
+                activeTab === "leads"
+                  ? "bg-orange-600 text-white shadow-md shadow-orange-100"
+                  : "bg-white text-gray-600 hover:bg-gray-50 shadow-sm border border-gray-100"
+              }`}
+            >
+              My Leads ({leads.length})
             </button>
             <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-6 py-3 bg-gray-800 text-white rounded-xl font-bold hover:bg-gray-900 transition-all shadow-lg"
+              onClick={() => setActiveTab("create")}
+              className={`px-4 py-2 rounded-lg font-bold transition-all text-[10px] ${
+                activeTab === "create"
+                  ? "bg-orange-600 text-white shadow-md shadow-orange-100"
+                  : "bg-white text-gray-600 hover:bg-gray-50 shadow-sm border border-gray-100"
+              }`}
             >
-              <FaSignOutAlt /> Logout
+              {editingLead ? "Edit Lead" : "Create Lead"}
             </button>
-          </div>
-        </header>
-
-        {/* Tab Navigation */}
-        <div className="flex gap-4 mb-8">
-          <button
-            onClick={() => setActiveTab("leads")}
-            className={`px-6 py-3 rounded-xl font-bold transition-all ${
-              activeTab === "leads"
-                ? "bg-orange-600 text-white shadow-lg"
-                : "bg-white text-gray-700 hover:bg-gray-100"
-            }`}
-          >
-            My Leads ({leads.length})
-          </button>
-          <button
-            onClick={() => setActiveTab("create")}
-            className={`px-6 py-3 rounded-xl font-bold transition-all ${
-              activeTab === "create"
-                ? "bg-orange-600 text-white shadow-lg"
-                : "bg-white text-gray-700 hover:bg-gray-100"
-            }`}
-          >
-            {editingLead ? "Edit Lead" : "Create Lead"}
-          </button>
+            <button
+              onClick={() => setActiveTab("profile")}
+              className={`px-4 py-2 rounded-lg font-bold transition-all text-[10px] ${
+                activeTab === "profile"
+                  ? "bg-orange-600 text-white shadow-md shadow-orange-100"
+                  : "bg-white text-gray-600 hover:bg-gray-50 shadow-sm border border-gray-100"
+              }`}
+            >
+              My Profile
+            </button>
         </div>
+
+        {activeTab === 'dashboard' && (
+          <Dashboard 
+            role="AGENT" 
+            leads={leads} 
+            onTabChange={setActiveTab}
+          />
+        )}
 
         {/* Leads List Tab */}
         {activeTab === "leads" && (
@@ -326,7 +375,8 @@ export default function AgentDashboard() {
                     key={lead.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-white/90 backdrop-blur-md p-6 rounded-[2rem] shadow-xl border border-white hover:shadow-2xl hover:border-orange-300 transition-all"
+                    onClick={() => setSelectedLead(lead)}
+                    className="bg-white/90 backdrop-blur-md p-6 rounded-[2rem] shadow-xl border border-white hover:shadow-2xl hover:border-orange-300 transition-all cursor-pointer group"
                   >
                     {/* Lead Header */}
                     <div className="flex justify-between items-start mb-4">
@@ -334,9 +384,15 @@ export default function AgentDashboard() {
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                           {lead.id}
                         </span>
-                        <h3 className="text-xl font-bold text-gray-900">{lead.client_name}</h3>
+                        <h3 className="text-xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors">{lead.client_name}</h3>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => setSelectedLead(lead)}
+                          className="p-2 text-orange-600 bg-orange-50 rounded-lg hover:bg-orange-600 hover:text-white transition-all"
+                        >
+                          <FaEye size={14} />
+                        </button>
                         <button
                           onClick={() => handleEdit(lead)}
                           className="p-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-600 hover:text-white transition-all"
@@ -661,7 +717,149 @@ export default function AgentDashboard() {
             </div>
           </div>
         )}
+
+        {/* Profile Tab */}
+        {activeTab === "profile" && <Profile onUpdate={(updatedUser) => setUser(updatedUser)} />}
+        </main>
+
+        <AnimatePresence>
+          {selectedLead && (
+            <LeadDetailModal 
+              lead={selectedLead} 
+              onClose={() => setSelectedLead(null)} 
+              onEdit={(l) => { setSelectedLead(null); handleEdit(l); }}
+              getStatusColor={getStatusColor}
+              getPaymentStatusColor={getPaymentStatusColor}
+            />
+          )}
+        </AnimatePresence>
       </div>
+    </div>
+  );
+}
+
+function LeadDetailModal({ lead, onClose, onEdit, getStatusColor, getPaymentStatusColor }) {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden"
+      >
+        <div className="p-8 max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <div className="flex justify-between items-start mb-8">
+            <div>
+              <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest bg-orange-50 px-3 py-1 rounded-full border border-orange-100">
+                Lead #{lead.id}
+              </span>
+              <h2 className="text-3xl font-black text-gray-900 mt-2">{lead.client_name}</h2>
+              <div className="flex gap-2 mt-3">
+                <span className={`px-3 py-1 rounded-lg text-xs font-bold ${getStatusColor(lead.status)}`}>
+                  {lead.status}
+                </span>
+                <span className={`px-3 py-1 rounded-lg text-xs font-bold ${getPaymentStatusColor(lead.payment_status)}`}>
+                  Payment: {lead.payment_status}
+                </span>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+              <FaTimes size={20} className="text-gray-400" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-6">
+              <div>
+                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Contact Information</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                    <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600">
+                      <FaPhone size={14} />
+                    </div>
+                    <span className="text-sm font-bold text-gray-700">{lead.client_phone}</span>
+                  </div>
+                  {lead.client_email && (
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                      <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600">
+                        <FaEnvelope size={14} />
+                      </div>
+                      <span className="text-sm font-bold text-gray-700">{lead.client_email}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Location Details</h4>
+                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
+                   <div className="flex items-center gap-3">
+                     <FaMapMarkerAlt className="text-orange-500" />
+                     <span className="text-sm font-medium text-gray-600">{lead.exact_location || 'No address provided'}</span>
+                   </div>
+                   {lead.latitude && (
+                     <div className="flex items-center gap-3 text-xs text-gray-400 pt-2 border-t border-gray-200">
+                        <FaMapPin className="text-green-500" />
+                        <span>GPS: {lead.latitude}, {lead.longitude}</span>
+                     </div>
+                   )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Service & Project</h4>
+                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                  <div className="font-black text-orange-600 text-sm mb-2">{lead.service_type}</div>
+                  <p className="text-sm text-gray-600 leading-relaxed">{lead.project_brief || 'No project description provided.'}</p>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Financial Overview</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-white rounded-2xl border border-gray-100 shadow-sm text-center">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">Total</p>
+                    <p className="text-lg font-black text-gray-900">₹{lead.total_amount || 0}</p>
+                  </div>
+                  <div className="p-3 bg-white rounded-2xl border border-gray-100 shadow-sm text-center">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">Paid</p>
+                    <p className="text-lg font-black text-green-600">₹{lead.paid_amount || 0}</p>
+                  </div>
+                </div>
+                {lead.payment_notes && (
+                  <div className="mt-3 p-3 bg-orange-50/50 rounded-xl text-[11px] text-orange-800 border border-orange-100 italic">
+                    Note: {lead.payment_notes}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-4 mt-10">
+            <button 
+              onClick={() => onEdit(lead)}
+              className="flex-1 py-4 bg-orange-600 text-white rounded-2xl font-bold hover:bg-orange-700 transition-all shadow-xl shadow-orange-100 flex items-center justify-center gap-2"
+            >
+              <FaEdit /> Edit Lead Details
+            </button>
+            <button 
+              onClick={onClose}
+              className="px-8 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition-all"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -670,7 +868,7 @@ export default function AgentDashboard() {
 function InputField({ label, value, onChange, placeholder, icon, type = "text" }) {
   return (
     <div className="space-y-2">
-      <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">{label}</label>
+      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</label>
       <div className="relative">
         {icon && (
           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-400">{icon}</div>
