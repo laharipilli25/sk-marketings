@@ -74,7 +74,7 @@ export default function UserLogin() {
             backgroundImage: `url('https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1600')`,
           }}
         />
-        <div className="absolute inset-0 z-10 bg-gradient-to-br from-orange-600/90 via-orange-500/80 to-slate-900/95" />
+        <div className="absolute inset-0 z-10 bg-gradient-to-br from-orange-500/10 via-orange-500/10 to-slate-900/95" />
 
         {/* Animated Background Elements */}
         <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-orange-400/20 rounded-full blur-[120px] animate-blob" />

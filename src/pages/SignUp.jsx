@@ -33,7 +33,11 @@ export default function UserSignup() {
     village: "",
     aadharNumber: "",
     password: "",
+    pincode: "",
   });
+
+  const [mandalSuggestions, setMandalSuggestions] = useState([]);
+  const [pincodeLoading, setPincodeLoading] = useState(false);
 
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -97,6 +101,48 @@ export default function UserSignup() {
       fetchDistricts(stateId);
     } else {
       setDistricts([]);
+    }
+  };
+
+  const handlePincodeChange = async (e) => {
+    const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+    setFormData((prev) => ({ ...prev, pincode: val }));
+
+    if (val.length === 6) {
+      setPincodeLoading(true);
+      try {
+        const response = await fetch(`https://api.postalpincode.in/pincode/${val}`);
+        const data = await response.json();
+
+        if (data[0].Status === "Success") {
+          const postOffices = data[0].PostOffice;
+          const apiState = postOffices[0].State;
+          const apiDistrict = postOffices[0].District;
+
+          setMandalSuggestions(postOffices.map(po => po.Name));
+
+          // Find and set State
+          const foundState = states.find(s => s.name.toUpperCase() === apiState.toUpperCase());
+          if (foundState) {
+            setFormData(prev => ({ ...prev, state_id: foundState.id }));
+            
+            // Fetch and set District
+            const distResponse = await fetch(`${API_URL}/auth/districts/${foundState.id}`);
+            if (distResponse.ok) {
+              const distData = await distResponse.json();
+              setDistricts(distData);
+              const foundDist = distData.find(d => d.name.toUpperCase() === apiDistrict.toUpperCase());
+              if (foundDist) {
+                setFormData(prev => ({ ...prev, district_id: foundDist.id }));
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Pincode API Error:", err);
+      } finally {
+        setPincodeLoading(false);
+      }
     }
   };
 
@@ -294,10 +340,10 @@ export default function UserSignup() {
       {/* LEFT SIDE - BRAND HIGHLIGHTS (Hidden on mobile) */}
       <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden bg-slate-900">
         <div
-          className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-40 scale-105 animate-pulse-slow"
-          style={{ backgroundImage: `url('https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&q=80&w=1600')` }}
+          className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-50 scale-105 animate-pulse-slow"
+          style={{ backgroundImage: `url('https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80&w=1600')` }}
         />
-        <div className="absolute inset-0 z-10 bg-gradient-to-br from-orange-600/90 via-orange-500/80 to-slate-900/95" />
+        <div className="absolute inset-0 z-10 bg-gradient-to-br from-orange-500/10 via-orange-500/10 to-slate-900/95" />
 
         <div className="relative z-20 w-full p-12 flex flex-col justify-between">
           <motion.div
@@ -381,7 +427,7 @@ export default function UserSignup() {
       </div>
 
       {/* RIGHT SIDE - SIGNUP FORM */}
-      <div className="w-full lg:w-[55%] flex flex-col items-center p-8 pt-24 md:pt-12 bg-slate-50 relative overflow-y-auto">
+      <div className="w-full lg:w-[55%] flex flex-col items-center p-6 md:p-8 bg-slate-50 relative overflow-y-auto">
         {/* Mobile Header */}
         <div className="lg:hidden absolute top-6 left-6 right-6 flex items-center justify-between z-30 bg-slate-50/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/50 shadow-sm">
           <Link to="/" className="inline-flex items-center gap-2">
@@ -399,14 +445,11 @@ export default function UserSignup() {
           transition={{ duration: 0.6 }}
           className="w-full max-w-2xl my-auto"
         >
-          <div className="mb-8">
-            <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-600 text-[10px] font-black px-4 py-1.5 rounded-full mb-4 uppercase tracking-widest">
-              ✨ Join Our Network
-            </div>
-            <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase mb-1">
+          <div className="mb-4">
+            <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase mb-0.5">
               Create <span className="text-orange-500">Account.</span>
             </h2>
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-tight">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
               Fill in your professional details to get started.
             </p>
           </div>
@@ -437,9 +480,9 @@ export default function UserSignup() {
           {!success && (
             <form onSubmit={handleSignup} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
               {/* Profile Photo Upload */}
-              <div className="md:col-span-2 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm mb-2">
-                <div className="flex flex-col md:flex-row items-center gap-6">
-                  <div className="w-24 h-24 rounded-2xl overflow-hidden border-2 border-orange-100 bg-orange-50 flex items-center justify-center shadow-sm relative group">
+              <div className="md:col-span-2 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm mb-1">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-orange-100 bg-orange-50 flex items-center justify-center shadow-sm relative group">
                     {preview ? (
                       <img src={preview} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
@@ -469,6 +512,17 @@ export default function UserSignup() {
               <InputField icon={<FaPhoneAlt />} label="Primary Phone" name="phone" placeholder="9876543210" value={formData.phone} onChange={handleChange} error={fieldErrors.phone} />
               <InputField icon={<FaPhoneAlt />} label="Alternate Phone" name="alternatePhone" placeholder="9876543210" value={formData.alternatePhone} onChange={handleChange} error={fieldErrors.alternatePhone} />
 
+              <div className="md:col-span-2">
+                <InputField 
+                  icon={pincodeLoading ? <FaSpinner className="animate-spin" /> : <FaMapMarkerAlt />} 
+                  label="PIN Code" 
+                  name="pincode" 
+                  placeholder="6-digit PIN code" 
+                  value={formData.pincode} 
+                  onChange={handlePincodeChange} 
+                />
+              </div>
+
               <SelectField
                 icon={<FaMapMarkerAlt />}
                 label="State"
@@ -491,8 +545,45 @@ export default function UserSignup() {
                 error={fieldErrors.district_id}
               />
 
-              <InputField icon={<FaMapMarkerAlt />} label="Mandal" name="mandal" placeholder="Enter mandal" value={formData.mandal} onChange={handleChange} error={fieldErrors.mandal} />
-              <InputField icon={<FaMapMarkerAlt />} label="Village" name="village" placeholder="Enter village" value={formData.village} onChange={handleChange} error={fieldErrors.village} />
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Mandal</label>
+                <div className="relative group">
+                  <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-orange-500 transition-colors z-10"><FaMapMarkerAlt /></div>
+                  <input
+                    list="mandal-list"
+                    name="mandal"
+                    required
+                    value={formData.mandal}
+                    onChange={handleChange}
+                    placeholder="Enter mandal"
+                    className={`w-full pl-12 pr-5 py-3 rounded-xl bg-white border-2 focus:border-orange-500 focus:outline-none transition-all font-bold text-sm text-slate-800 placeholder:text-slate-300 shadow-sm ${fieldErrors.mandal ? "border-red-100 bg-red-50/30" : "border-slate-100"}`}
+                  />
+                  <datalist id="mandal-list">
+                    {mandalSuggestions.map((m, i) => <option key={i} value={m} />)}
+                  </datalist>
+                </div>
+                {fieldErrors.mandal && <p className="text-red-500 text-[10px] font-bold ml-2 uppercase tracking-tight">{fieldErrors.mandal}</p>}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Village</label>
+                <div className="relative group">
+                  <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-orange-500 transition-colors z-10"><FaMapMarkerAlt /></div>
+                  <input
+                    list="village-list"
+                    name="village"
+                    required
+                    value={formData.village}
+                    onChange={handleChange}
+                    placeholder="Enter village"
+                    className={`w-full pl-12 pr-5 py-3 rounded-xl bg-white border-2 focus:border-orange-500 focus:outline-none transition-all font-bold text-sm text-slate-800 placeholder:text-slate-300 shadow-sm ${fieldErrors.village ? "border-red-100 bg-red-50/30" : "border-slate-100"}`}
+                  />
+                  <datalist id="village-list">
+                    {mandalSuggestions.map((v, i) => <option key={i} value={v} />)}
+                  </datalist>
+                </div>
+                {fieldErrors.village && <p className="text-red-500 text-[10px] font-bold ml-2 uppercase tracking-tight">{fieldErrors.village}</p>}
+              </div>
               <InputField icon={<FaIdCard />} label="Aadhar Number" name="aadharNumber" placeholder="12-digit number" value={formData.aadharNumber} onChange={handleChange} />
               <InputField icon={<FaLock />} label="Password" name="password" type="password" placeholder="••••••••" value={formData.password} onChange={handleChange} error={fieldErrors.password} />
 
@@ -502,11 +593,11 @@ export default function UserSignup() {
                   whileTap={{ scale: 0.99 }}
                   type="submit"
                   disabled={loading}
-                  className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white font-black rounded-2xl transition-all shadow-xl shadow-orange-200 flex items-center justify-center gap-4 text-[11px] tracking-[0.3em] uppercase disabled:opacity-70"
+                  className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-black rounded-xl transition-all shadow-xl shadow-orange-200 flex items-center justify-center gap-4 text-[11px] tracking-[0.3em] uppercase disabled:opacity-70"
                 >
                   {loading ? <FaSpinner className="animate-spin text-lg" /> : <>Complete Registration <FaArrowRight /></>}
                 </motion.button>
-                <p className="mt-6 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                <p className="mt-4 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                   Already registered? <Link to="/user-login" className="text-orange-500 hover:text-orange-600 transition-colors">Sign In Here</Link>
                 </p>
               </div>
@@ -532,7 +623,7 @@ function SelectField({ icon, label, name, value, onChange, options, placeholder,
           value={value}
           onChange={onChange}
           disabled={disabled}
-          className={`w-full pl-12 pr-10 py-4 rounded-2xl bg-white border-2 focus:border-orange-500 focus:outline-none transition-all font-bold text-sm text-slate-800 appearance-none disabled:opacity-50 shadow-sm ${error ? "border-red-100 bg-red-50/30" : "border-slate-100"}`}
+          className={`w-full pl-12 pr-10 py-3 rounded-xl bg-white border-2 focus:border-orange-500 focus:outline-none transition-all font-bold text-sm text-slate-800 appearance-none disabled:opacity-50 shadow-sm ${error ? "border-red-100 bg-red-50/30" : "border-slate-100"}`}
         >
           <option value="">{placeholder}</option>
           {options.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
@@ -558,7 +649,7 @@ function InputField({ icon, label, name, type = "text", placeholder, value, onCh
           value={value}
           onChange={onChange}
           placeholder={placeholder}
-          className={`w-full pl-12 pr-5 py-4 rounded-2xl bg-white border-2 focus:border-orange-500 focus:outline-none transition-all font-bold text-sm text-slate-800 placeholder:text-slate-300 shadow-sm ${error ? "border-red-100 bg-red-50/30" : "border-slate-100"}`}
+          className={`w-full pl-12 pr-5 py-3 rounded-xl bg-white border-2 focus:border-orange-500 focus:outline-none transition-all font-bold text-sm text-slate-800 placeholder:text-slate-300 shadow-sm ${error ? "border-red-100 bg-red-50/30" : "border-slate-100"}`}
         />
       </div>
       {error && <p className="text-red-500 text-[10px] font-bold ml-2 uppercase tracking-tight">{error}</p>}

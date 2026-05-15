@@ -3,6 +3,7 @@ import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import Sidebar from '../components/Sidebar'
 import DashboardHeader from '../components/DashboardHeader'
+import WhatsAppButton from '../components/WhatsAppButton'
 
 function Layout({ children }) {
   const location = useLocation()
@@ -23,6 +24,7 @@ function Layout({ children }) {
         {children}
       </main>
       {!isAuthPage && <Footer />}
+      {!isAuthPage && <WhatsAppButton />}
     </div>
   )
 }

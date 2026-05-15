@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { FaInstagram, FaPhone, FaEnvelope, FaMapMarkerAlt, FaWhatsapp, FaUser, FaUserShield } from 'react-icons/fa'
-import skfbg from '../assets/skfbg.png' 
-import skLogo from '../assets/sklogo.png' 
+import skfbg from '../assets/skfbg.png'
+import skLogo from '../assets/sklogo.png'
 
 function Footer() {
   const year = new Date().getFullYear()
@@ -24,29 +24,29 @@ function Footer() {
   return (
     <footer className="relative bg-orange-900 text-white overflow-hidden">
       {/* ─── BACKGROUND IMAGE LAYER ─── */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 0.3 }}
         transition={{ duration: 1.5 }}
         className="absolute inset-0 z-0 pointer-events-none"
-        style={{ 
+        style={{
           backgroundImage: `url(${skfbg})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center'
         }}
       />
-      
+
       <div className="absolute inset-0 z-0 bg-gradient-to-br from-orange-200/10 via-orange-100/10 to-white/10 pointer-events-none" />
 
       {/* Top Accent Band */}
-      <motion.div 
+      <motion.div
         initial={{ scaleX: 0 }}
         whileInView={{ scaleX: 1 }}
         transition={{ duration: 1, ease: "easeInOut" }}
-        className="relative z-10 bg-gradient-to-r from-orange-300 via-white to-orange-300 h-1 origin-left" 
+        className="relative z-10 bg-gradient-to-r from-orange-300 via-white to-orange-300 h-1 origin-left"
       />
 
-      <motion.div 
+      <motion.div
         variants={containerVariants}
         initial="hidden"
         whileInView="visible"
@@ -54,18 +54,18 @@ function Footer() {
         className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-          
+
           {/* Brand & Logo Section */}
           <motion.div variants={itemVariants} className="lg:col-span-1">
             <div className="flex items-center gap-3 mb-5">
-              <motion.div 
+              <motion.div
                 whileHover={{ rotate: 360, scale: 1.1 }}
                 transition={{ duration: 0.8 }}
                 className="w-14 h-14 bg-white rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.2)] border-2 border-orange-500 cursor-pointer overflow-hidden p-1"
               >
-                <img 
-                  src={skLogo} 
-                  alt="SK Marketings Logo" 
+                <img
+                  src={skLogo}
+                  alt="SK Marketings Logo"
                   className="w-full h-full object-contain"
                 />
               </motion.div>
@@ -77,7 +77,7 @@ function Footer() {
             <p className="text-white/90 font-body text-sm leading-relaxed mb-6">
               Empowering businesses across India and beyond with expert consultancy, financial guidance, and digital marketing solutions.
             </p>
-            <motion.div 
+            <motion.div
               whileHover={{ x: 5 }}
               className="flex items-center gap-2 bg-white/10 w-fit px-3 py-1 rounded-full border border-white/20"
             >
@@ -105,8 +105,8 @@ function Footer() {
                   >
                     <span className="w-1.5 h-1.5 bg-orange-400 rounded-full group-hover:bg-white transition-colors" />
                     <span className="flex items-center gap-2">
-                        {link.icon && <span className="text-orange-400 group-hover:text-white">{link.icon}</span>}
-                        {link.label}
+                      {link.icon && <span className="text-orange-400 group-hover:text-white">{link.icon}</span>}
+                      {link.label}
                     </span>
                   </Link>
                 </motion.li>
@@ -138,10 +138,10 @@ function Footer() {
             <ul className="space-y-4">
               <li className="flex items-start gap-3 group">
                 <FaMapMarkerAlt className="text-orange-400 mt-1 group-hover:text-white transition-colors flex-shrink-0" />
-                <a 
-                  href="https://maps.app.goo.gl/MyqMMtETyY26mtfR6?g_st=aw" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
+                <a
+                  href="https://maps.app.goo.gl/MyqMMtETyY26mtfR6?g_st=aw"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="text-white/90 hover:text-white font-body text-sm transition-colors"
                 >
                   Sk Marketings, Tirupati, Andhra Pradesh 517502
@@ -149,14 +149,14 @@ function Footer() {
               </li>
               <li className="flex items-center gap-3 group">
                 <FaPhone className="text-orange-400 group-hover:text-white transition-colors" />
-                <a href="tel:+918501011026" className="text-white/90 hover:text-white font-body text-sm transition-colors">
-                  +91 85010 11026
+                <a href="tel:+917995653959" className="text-white/90 hover:text-white font-body text-sm transition-colors">
+                  +91 7995653959
                 </a>
               </li>
               <li className="flex items-center gap-3 group">
                 <FaEnvelope className="text-orange-400 group-hover:text-white transition-colors" />
                 <a href="mailto:Skmarketingstpt@gmail.com" className="text-white/90 hover:text-white font-body text-sm transition-colors break-all">
-                  Skmarketingstpt@gmail.com
+                  skmarketingstpt@gmail.com
                 </a>
               </li>
             </ul>
@@ -184,7 +184,7 @@ function Footer() {
       </motion.div>
 
       {/* Footer Bottom Bar - BOLD & THICK */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
@@ -194,7 +194,7 @@ function Footer() {
           <p className="text-white font-body text-sm font-black text-center tracking-wide uppercase">
             © {year} SK MARKETINGS. ALL RIGHTS RESERVED.
           </p>
-          <motion.p 
+          <motion.p
             animate={{ scale: [1, 1.05, 1] }}
             transition={{ repeat: Infinity, duration: 3 }}
             className="text-white font-body text-sm flex items-center gap-2 font-black tracking-wide uppercase"

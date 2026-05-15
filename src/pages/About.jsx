@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { FaEye, FaBullseye, FaAward, FaChartLine, FaUsers, FaLinkedinIn } from 'react-icons/fa'
-import founderImg from '../assets/founder.png' 
+import founderImg from '../assets/founder.png'
 import SEO from '../components/SEO'
 import { pageTransition, staggerContainer, staggerItem, slideLeft, slideRight } from '../utils/animations'
 
@@ -40,13 +40,13 @@ function About() {
       {/* ── SECTION 2: FOUNDER PROFILE (WHITE - IMAGE FIT) ── */}
       <section className="bg-white overflow-hidden">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid lg:grid-cols-2 gap-0 items-stretch min-h-[600px]">
+          <div className="grid lg:grid-cols-[0.8fr_1.2fr] gap-0 items-stretch min-h-[600px]">
             {/* Founder Image - Fitted to Section */}
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={slideLeft} className="relative h-full py-12 lg:py-24">
-              <div className="relative h-full rounded-3xl overflow-hidden shadow-2xl border-[12px] border-orange-500 bg-slate-50">
-                <img 
-                  src={founderImg} 
-                  alt="Sasi Kumar Yadav - Founder" 
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={slideLeft} className="relative flex justify-center py-12 lg:py-20">
+              <div className="relative w-full max-w-md aspect-[4/5] md:aspect-auto md:h-[600px] rounded-[2.5rem] overflow-hidden shadow-2xl border-[8px] border-orange-500 bg-slate-50">
+                <img
+                  src={founderImg}
+                  alt="Sasi Kumar Yadav - Founder"
                   className="w-full h-full object-cover object-top"
                 />
               </div>
@@ -55,9 +55,9 @@ function About() {
             {/* Founder Content */}
             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={slideRight} className="flex flex-col justify-center p-12 lg:p-24">
               <h4 className="text-orange-500 font-black uppercase tracking-[0.5em] text-[12px] mb-4">The Leadership</h4>
-              <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-2 uppercase tracking-tighter">Sasi Kumar Yadav</h2>
+              <h2 className="text-3xl md:text-5xl font-black text-slate-900 mb-2 uppercase tracking-tighter whitespace-nowrap">Sasi Kumar  Yadav</h2>
               <p className="text-orange-600 font-black text-lg mb-8 tracking-widest uppercase">CEO & Founder</p>
-              
+
               <div className="space-y-6 text-slate-700 leading-relaxed text-lg font-medium">
                 <p>
                   As a visionary strategist with over 5 years of cross-industry expertise, <strong>Sasi Kumar Yadav</strong> has redefined the consultancy landscape in India. His dual background in technical architecture and business administration allows him to solve complex fiscal challenges with surgical precision.
@@ -126,17 +126,17 @@ function About() {
       {/* ── SECTION 5: GLOBAL FOOTPRINT (ORANGE) ── */}
       <section className="bg-orange-500 py-20">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-12 text-white">
-            {[
-              { val: '10+', lab: 'Years Legacy', icon: FaAward },
-              { val: '500+', lab: 'Enterprises Scaled', icon: FaUsers },
-              { val: '98%', lab: 'Client Retention', icon: FaChartLine },
-              { val: '24/7', lab: 'Advisory Support', icon: FaChartLine },
-            ].map((s, i) => (
-              <div key={i} className="text-center">
-                <div className="text-4xl md:text-5xl font-black mb-2">{s.val}</div>
-                <div className="text-[11px] font-black uppercase tracking-[0.3em] opacity-80">{s.lab}</div>
-              </div>
-            ))}
+          {[
+            { val: '10+', lab: 'Years Legacy', icon: FaAward },
+            { val: '500+', lab: 'Enterprises Scaled', icon: FaUsers },
+            { val: '98%', lab: 'Client Retention', icon: FaChartLine },
+            { val: '24/7', lab: 'Advisory Support', icon: FaChartLine },
+          ].map((s, i) => (
+            <div key={i} className="text-center">
+              <div className="text-4xl md:text-5xl font-black mb-2">{s.val}</div>
+              <div className="text-[11px] font-black uppercase tracking-[0.3em] opacity-80">{s.lab}</div>
+            </div>
+          ))}
         </div>
       </section>
     </motion.div>

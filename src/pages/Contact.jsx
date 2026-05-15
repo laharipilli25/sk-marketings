@@ -11,16 +11,16 @@ const contactDetails = [
   {
     icon: FaPhone,
     label: 'Phone',
-    value: '+91 85010 11026',
-    sub: '+91 91824 60018',
-    href: 'tel:+918501011026',
+    value: '+91 79956 53959',
+    sub: '+91 79956 53959',
+    href: 'tel:+917995653959',
     color: 'from-orange-400 to-orange-600',
   },
   {
     icon: FaEnvelope,
     label: 'Email',
-    value: 'Skmarketingstpt@gmail.com',
-    href: 'mailto:Skmarketingstpt@gmail.com',
+    value: 'skmarketingstpt@gmail.com',
+    href: 'mailto:skmarketingstpt@gmail.com',
     color: 'from-orange-500 to-orange-700',
   },
   {
@@ -28,15 +28,15 @@ const contactDetails = [
     label: 'Location',
     value: 'Tirupati, Andhra Pradesh',
     sub: 'India — 517501',
-    href: 'https://maps.app.goo.gl/MyqMMtETyY26mtfR6?g_st=aw', 
+    href: 'https://maps.app.goo.gl/MyqMMtETyY26mtfR6?g_st=aw',
     color: 'from-orange-600 to-red-500',
   },
   {
     icon: FaWhatsapp,
     label: 'WhatsApp',
-    value: '+91 85010 11026',
-    href: 'https://wa.me/918501011026',
-    color: 'from-green-500 to-green-600', 
+    value: '+91 79956 53959',
+    href: 'https://wa.me/917995653959',
+    color: 'from-green-500 to-green-600',
   },
 ]
 
@@ -116,7 +116,7 @@ function Contact() {
       <section className="relative pt-36 pb-32 bg-orange-500 overflow-hidden">
         <div className="absolute inset-0 bg-hero-pattern opacity-10" />
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-orange-400/20 rounded-full blur-[120px] -z-1" />
-        
+
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center lg:text-left">
           <motion.div
             initial="hidden"
@@ -224,21 +224,23 @@ function Contact() {
                           className="w-full border-2 border-gray-50 bg-gray-50 rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-500 focus:bg-white transition-all font-medium" />
                       </div>
                       <div className="space-y-2">
-                          <label className="text-[12px] font-black text-orange-600 uppercase tracking-widest ml-1">Service Required</label>
-                          <select name="service" value={form.service} onChange={handleChange}
-                            className="w-full border-2 border-gray-50 bg-gray-50 rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-500 focus:bg-white transition-all appearance-none cursor-pointer font-medium" >
-                            <option value="">Select a service...</option>
-                            <option>MSME Services</option>
-                            <option>Business Promotions</option>
-                            <option>Financial Services</option>
-                            <option>Digital Marketing</option>
-                            <option>Others</option>
-                          </select>
+                        <label className="text-[12px] font-black text-orange-600 uppercase tracking-widest ml-1">Service Required</label>
+                        <select name="service" value={form.service} onChange={handleChange}
+                          className="w-full border-2 border-gray-50 bg-gray-50 rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-500 focus:bg-white transition-all appearance-none cursor-pointer font-medium" >
+                          <option value="">Select a service...</option>
+                          <option>Insurance</option>
+                          <option>MSME Services</option>
+                          <option>Business Promotions</option>
+                          <option>Financial Services</option>
+                          <option>Digital Marketing</option>
+                          <option>Products</option>
+                          <option>Others</option>
+                        </select>
                       </div>
                       <div className="space-y-2">
-                          <label className="text-[12px] font-black text-orange-600 uppercase tracking-widest ml-1">Message *</label>
-                          <textarea name="message" value={form.message} onChange={handleChange} placeholder="How can we help?" rows={4}
-                            className={`w-full border-2 ${errors.message ? 'border-red-200 bg-red-50' : 'border-gray-50 bg-gray-50'} rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-500 focus:bg-white transition-all resize-none font-medium`} />
+                        <label className="text-[12px] font-black text-orange-600 uppercase tracking-widest ml-1">Message *</label>
+                        <textarea name="message" value={form.message} onChange={handleChange} placeholder="How can we help?" rows={4}
+                          className={`w-full border-2 ${errors.message ? 'border-red-200 bg-red-50' : 'border-gray-50 bg-gray-50'} rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-500 focus:bg-white transition-all resize-none font-medium`} />
                       </div>
                       <motion.button type="submit" disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                         className="w-full bg-orange-600 hover:bg-orange-700 text-white font-black py-5 rounded-2xl shadow-2xl shadow-orange-200 flex items-center justify-center gap-3 disabled:opacity-70 transition-all text-sm tracking-[0.2em]" >
@@ -258,12 +260,12 @@ function Contact() {
         <div className="max-w-7xl mx-auto px-4">
           <p className="text-gray-400 font-black text-xs uppercase tracking-[0.3em] mb-10">Follow Our Updates</p>
           <div className="flex justify-center gap-8">
-              <a href="https://instagram.com" target="_blank" rel="noreferrer" className="w-20 h-20 bg-white text-orange-600 rounded-3xl flex items-center justify-center hover:bg-orange-600 hover:text-white transition-all shadow-xl hover:-translate-y-3">
-                <FaInstagram size={32} />
-              </a>
-              <a href="https://wa.me/918501011026" target="_blank" rel="noreferrer" className="w-20 h-20 bg-white text-green-600 rounded-3xl flex items-center justify-center hover:bg-green-600 hover:text-white transition-all shadow-xl hover:-translate-y-3">
-                <FaWhatsapp size={32} />
-              </a>
+            <a href="https://instagram.com" target="_blank" rel="noreferrer" className="w-20 h-20 bg-white text-orange-600 rounded-3xl flex items-center justify-center hover:bg-orange-600 hover:text-white transition-all shadow-xl hover:-translate-y-3">
+              <FaInstagram size={32} />
+            </a>
+            <a href="https://wa.me/917995653959" target="_blank" rel="noreferrer" className="w-20 h-20 bg-white text-green-600 rounded-3xl flex items-center justify-center hover:bg-green-600 hover:text-white transition-all shadow-xl hover:-translate-y-3">
+              <FaWhatsapp size={32} />
+            </a>
           </div>
         </div>
       </section>

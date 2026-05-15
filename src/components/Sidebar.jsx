@@ -21,13 +21,11 @@ const ADMIN_MODULES = [
   { id: "leads", label: "All Leads", icon: <FaClipboardList /> },
   { id: "agents", label: "Manage Agents", icon: <FaUsers /> },
   { id: "inquiries", label: "Inquiries", icon: <FaEnvelope /> },
-  { id: "profile", label: "My Profile", icon: <FaUserCircle /> },
 ];
 
 const AGENT_MODULES = [
   { id: "dashboard", label: "Dashboard", icon: <FaChartPie /> },
   { id: "leads", label: "My Leads", icon: <FaClipboardList /> },
-  { id: "profile", label: "My Profile", icon: <FaUserCircle /> },
 ];
 
 const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }) => {
@@ -37,10 +35,18 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }) => {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    if (!storedUser || storedUser === "undefined") {
+      navigate("/user-login");
+      return;
     }
-  }, []);
+    try {
+      setUser(JSON.parse(storedUser));
+    } catch (error) {
+      console.error("Error parsing user from localStorage:", error);
+      localStorage.clear();
+      navigate("/user-login");
+    }
+  }, [navigate]);
 
   const isAdmin = user?.role === "ADMIN";
   const modules = isAdmin ? ADMIN_MODULES : AGENT_MODULES;
@@ -119,8 +125,8 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }) => {
               key={module.id}
               onClick={() => handleTabClick(module.id)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative ${activeTab === module.id
-                  ? "bg-orange-600 text-white shadow-md shadow-orange-100"
-                  : "text-gray-500 hover:bg-orange-50 hover:text-orange-600"
+                ? "bg-orange-600 text-white shadow-md shadow-orange-100"
+                : "text-gray-500 hover:bg-orange-50 hover:text-orange-600"
                 }`}
             >
               <div className={`text-lg transition-transform group-hover:scale-110 ${activeTab === module.id ? "text-white" : "text-gray-400"}`}>
@@ -145,18 +151,18 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }) => {
           {(!isCollapsed || isOpen) && user && (
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold overflow-hidden shrink-0">
-                {user.profile_photo ? (
+                {(user.profile_photo || user.profilePhoto) ? (
                   <img
-                    src={`${import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "")}/${user.profile_photo}`}
+                    src={`${import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "")}/${user.profile_photo || user.profilePhoto}`}
                     alt="P"
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  user.full_name?.charAt(0)
+                  (user.full_name || user.fullName)?.charAt(0)
                 )}
               </div>
               <div className="overflow-hidden">
-                <p className="font-black text-xs text-gray-900 truncate">{user.full_name}</p>
+                <p className="font-black text-xs text-gray-900 truncate">{user.full_name || user.fullName}</p>
                 <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">{user.role}</p>
               </div>
             </div>
@@ -164,10 +170,10 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }) => {
           {isCollapsed && !isOpen && (
             <div className="flex justify-center">
               <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold overflow-hidden">
-                {user?.profile_photo ? (
-                  <img src={`${import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "")}/${user.profile_photo}`} alt="P" className="w-full h-full object-cover" />
+                {(user?.profile_photo || user?.profilePhoto) ? (
+                  <img src={`${import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "")}/${user.profile_photo || user.profilePhoto}`} alt="P" className="w-full h-full object-cover" />
                 ) : (
-                  user?.full_name?.charAt(0)
+                  (user?.full_name || user?.fullName)?.charAt(0)
                 )}
               </div>
             </div>

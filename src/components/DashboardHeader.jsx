@@ -1,6 +1,6 @@
 import { useState, useEffect, memo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaSearch, FaBell, FaUser, FaClock, FaCalendarAlt, FaMapMarkerAlt, FaSignOutAlt, FaBars } from "react-icons/fa";
+import { FaSearch, FaBell, FaUser, FaClock, FaCalendarAlt, FaMapMarkerAlt, FaSignOutAlt, FaBars, FaCog } from "react-icons/fa";
 
 function Clock() {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -24,14 +24,19 @@ function Clock() {
   );
 }
 
-const DashboardHeader = ({ title, onMenuClick }) => {
+const DashboardHeader = ({ title, onMenuClick, setActiveTab }) => {
   const [user, setUser] = useState(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser && storedUser !== "undefined") {
+        setUser(JSON.parse(storedUser));
+      }
+    } catch (error) {
+      console.error("Error parsing user from localStorage:", error);
     }
   }, []);
 
@@ -64,9 +69,9 @@ const DashboardHeader = ({ title, onMenuClick }) => {
         {/* Search Bar - Hidden on small screens */}
         <div className="hidden lg:flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl w-64 focus-within:ring-2 focus-within:ring-orange-100 transition-all">
           <FaSearch className="text-gray-400 text-xs" />
-          <input 
-            type="text" 
-            placeholder="Search..." 
+          <input
+            type="text"
+            placeholder="Search..."
             className="bg-transparent border-none outline-none text-xs font-medium text-gray-600 w-full"
           />
         </div>
@@ -76,39 +81,64 @@ const DashboardHeader = ({ title, onMenuClick }) => {
             <FaBell size={12} />
             <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-orange-600 rounded-full border border-white"></span>
           </button>
-          
+
           <div className="h-8 w-[1px] bg-gray-100 mx-1 hidden xs:block"></div>
 
-          <div className="flex items-center gap-2 md:gap-3">
-            <div className="text-right hidden sm:block">
-              <p className="text-xs font-black text-gray-900 leading-none">{user?.full_name}</p>
-              <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest mt-1">
-                {user?.role === 'ADMIN' ? 'Admin' : user?.village || 'Agent'}
-              </p>
-            </div>
-            <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg md:rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 p-0.5 shadow-md shadow-orange-100 relative group">
-               <div className="w-full h-full rounded-[0.55rem] md:rounded-[0.65rem] bg-white flex items-center justify-center overflow-hidden">
-                 {user?.profile_photo ? (
-                   <img 
-                    src={`${import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "")}/${user.profile_photo}`} 
-                    alt="P" 
-                    className="w-full h-full object-cover"
-                   />
-                 ) : (
-                   <FaUser size={12} className="text-orange-500" />
-                 )}
-               </div>
-            </div>
-
-            <div className="h-8 w-[1px] bg-gray-100 mx-0.5 hidden md:block"></div>
-
-            <button 
-              onClick={handleLogout}
-              className="flex items-center gap-1 px-2 md:px-3 py-1.5 bg-red-50 text-red-600 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all text-[9px] md:text-[10px] border border-red-100"
+          <div className="relative">
+            <div
+              className="flex items-center gap-2 md:gap-3 cursor-pointer p-1 rounded-xl hover:bg-gray-50 transition-colors"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             >
-              <FaSignOutAlt />
-              <span className="hidden md:inline">Logout</span>
-            </button>
+              <div className="text-right hidden sm:block">
+                <p className="text-xs font-black text-gray-900 leading-none">{user?.full_name || user?.fullName}</p>
+                <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest mt-1">
+                  {user?.role === 'ADMIN' ? 'Admin' : user?.village || 'Agent'}
+                </p>
+              </div>
+              <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg md:rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 p-0.5 shadow-md shadow-orange-100 relative group">
+                <div className="w-full h-full rounded-[0.55rem] md:rounded-[0.65rem] bg-white flex items-center justify-center overflow-hidden">
+                  {(user?.profile_photo || user?.profilePhoto) ? (
+                    <img
+                      src={`${import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "")}/${user.profile_photo || user.profilePhoto}`}
+                      alt="P"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <FaUser size={12} className="text-orange-500" />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {isDropdownOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setIsDropdownOpen(false)}
+                ></div>
+                <div className="absolute top-[calc(100%+0.5rem)] right-0 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 overflow-hidden">
+                  <button
+                    onClick={() => { if (setActiveTab) setActiveTab('profile'); setIsDropdownOpen(false); }}
+                    className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3 transition-colors"
+                  >
+                    <FaUser size={14} className="text-gray-400" /> Profile
+                  </button>
+                  {/* <button 
+                    onClick={() => { if(setActiveTab) setActiveTab('settings'); setIsDropdownOpen(false); }}
+                    className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3 transition-colors"
+                  >
+                    <FaCog size={14} className="text-gray-400" /> Settings
+                  </button> */}
+                  <div className="h-[1px] bg-gray-100 my-1"></div>
+                  <button
+                    onClick={() => { handleLogout(); setIsDropdownOpen(false); }}
+                    className="w-full text-left px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
+                  >
+                    <FaSignOutAlt size={14} className="text-red-400" /> Logout
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

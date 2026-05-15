@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { HiMenu, HiX } from 'react-icons/hi'
-import skLogo from '../assets/sklogo.png' 
+import skLogo from '../assets/sklogo.png'
 
 const navLinks = [
   { label: 'Home', path: '/' },
@@ -29,22 +29,20 @@ function Navbar() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        scrolled
-          ? 'bg-white/95 backdrop-blur-md shadow-sm py-3'
-          : 'bg-transparent py-5'
-      }`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled
+        ? 'bg-white/95 backdrop-blur-md shadow-sm py-3'
+        : 'bg-transparent py-5'
+        }`}
     >
       <div className="max-w-[1400px] mx-auto px-6 lg:px-10 flex items-center justify-between">
 
         {/* LOGO */}
         <Link to="/" className="flex items-center gap-3 group">
-          <motion.div 
+          <motion.div
             whileHover={{ rotate: 360, scale: 1.1 }}
             transition={{ duration: 0.8 }}
-            className={`w-12 h-12 flex items-center justify-center overflow-hidden rounded-xl border-2 ${
-              scrolled ? 'bg-white border-orange-500' : 'bg-white/10 border-white/20'
-            } p-1`}
+            className={`w-12 h-12 flex items-center justify-center overflow-hidden rounded-xl border-2 ${scrolled ? 'bg-white border-orange-500' : 'bg-white/10 border-white/20'
+              } p-1`}
           >
             <img src={skLogo} alt="Logo" className="w-full h-full object-contain" />
           </motion.div>
@@ -65,11 +63,10 @@ function Navbar() {
             <Link
               key={link.path}
               to={link.path}
-               className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${
-                location.pathname === link.path
-                  ? 'text-orange-500'
-                  : scrolled ? 'text-slate-700 hover:text-orange-500' : 'text-white/90 hover:text-orange-400'
-              }`}
+              className={`px-3 py-2 text-sm font-bold transition-all ${location.pathname === link.path
+                ? scrolled ? 'text-orange-500 rounded-lg' : 'text-white border-b-2 border-white'
+                : scrolled ? 'text-slate-700 hover:text-orange-500 rounded-lg' : 'text-white/90 hover:text-orange-400 rounded-lg'
+                }`}
             >
               {link.label}
             </Link>
@@ -115,11 +112,10 @@ function Navbar() {
                 <Link
                   key={link.path}
                   to={link.path}
-                  className={`px-4 py-3 rounded-xl font-bold ${
-                    location.pathname === link.path
-                      ? 'bg-orange-500 text-white'
-                      : 'text-slate-700 hover:bg-orange-50'
-                  }`}
+                  className={`px-4 py-3 rounded-xl font-bold ${location.pathname === link.path
+                    ? 'bg-orange-500 text-white'
+                    : 'text-slate-700 hover:bg-orange-50'
+                    }`}
                 >
                   {link.label}
                 </Link>

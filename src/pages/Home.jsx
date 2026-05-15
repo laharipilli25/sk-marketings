@@ -42,10 +42,10 @@ const BusinessCube = () => {
               className="absolute inset-0 border-2 border-orange-400 shadow-2xl bg-white overflow-hidden rounded-lg"
               style={{ transform: rotations[i], backfaceVisibility: 'hidden' }}
             >
-              <img 
-                src={img} 
-                alt="business collaboration" 
-                className="w-full h-full object-cover object-center grayscale-[20%] transition-all duration-500" 
+              <img
+                src={img}
+                alt="business collaboration"
+                className="w-full h-full object-cover object-center grayscale-[20%] transition-all duration-500"
               />
               <div className="absolute inset-0 bg-orange-500/5" />
             </div>
@@ -97,14 +97,18 @@ function Home() {
 
       {/* ── Hero Section ── */}
       <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-white">
-        <div 
+        <div
           className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-[0.85]"
-          style={{ 
+          style={{
             backgroundImage: `url('https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1600')`,
           }}
         />
         {/* Adjusted Gradient to Light Orange overlay */}
         <div className="absolute inset-0 z-10 bg-gradient-to-r from-white via-white/80 to-orange-400/40" />
+
+        {/* Navbar Contrast Shadow */}
+        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black/40 to-transparent z-10 pointer-events-none" />
+
         <div className="absolute top-1/2 -right-20 -translate-y-1/2 w-[600px] h-[600px] bg-orange-400/20 rounded-full blur-[100px] z-10" />
 
         <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
@@ -149,7 +153,7 @@ function Home() {
               </motion.div>
             </div>
 
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className="flex justify-center lg:justify-end drop-shadow-[0_20px_50px_rgba(249,115,22,0.25)] relative z-20"
@@ -224,7 +228,7 @@ function Home() {
                 ))}
               </div>
             </motion.div>
-            
+
             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={slideRight} className="bg-orange-500 rounded-[2.5rem] p-10 text-white relative overflow-hidden shadow-2xl">
               <div className="relative z-10 text-center">
                 <div className="text-6xl mb-4">🇮🇳</div>

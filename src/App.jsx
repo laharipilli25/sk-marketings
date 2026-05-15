@@ -8,7 +8,6 @@ import About from './pages/About'
 import Services from './pages/Services'
 import Clients from './pages/Clients'
 import Contact from './pages/Contact'
-import WhatsAppButton from './components/WhatsAppButton'
 
 // ✅ EXISTING LOGIN IMPORTS
 import UserLogin from './pages/UserLogin'
@@ -66,8 +65,6 @@ function App() {
           </Routes>
         </AnimatePresence>
       </Layout>
-
-      <WhatsAppButton />
     </>
   )
 }

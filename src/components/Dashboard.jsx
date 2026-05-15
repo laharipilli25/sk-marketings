@@ -99,7 +99,8 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
   const agentPerformanceData = useMemo(() => {
     if (!isAdmin) return [];
     
-    return agents.slice(0, 5).map(agent => {
+    // Process all agents first
+    const processedAgents = agents.map(agent => {
       const agentLeads = leads.filter(l => String(l.agent_id) === String(agent.id));
       const wonLeads = agentLeads.filter(l => l.status === "WON").length;
       const agentRevenue = agentLeads.reduce((sum, l) => sum + (parseFloat(l.paid_amount) || 0), 0);
@@ -109,7 +110,12 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
         won: wonLeads,
         revenue: agentRevenue
       };
-    }).sort((a, b) => b.leads - a.leads);
+    });
+
+    // Sort by revenue (descending) and take top 5
+    return processedAgents
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
   }, [agents, leads, isAdmin]);
 
   const customTooltipFormatter = (value, name) => {
@@ -340,19 +346,30 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
           className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 min-w-0"
         >
           <div className="flex justify-between items-center mb-8">
-            <h3 className="text-xl font-black text-gray-900">Top Performing Agents</h3>
-            <div className="flex gap-4">
-               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-orange-500" />
-                <span className="text-xs font-bold text-gray-600">Total Leads</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-green-500" />
-                <span className="text-xs font-bold text-gray-600">Won Leads</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500" />
-                <span className="text-xs font-bold text-gray-600">Revenue</span>
+            <div>
+              <h3 className="text-xl font-black text-gray-900">Top Performing Agents</h3>
+              <p className="text-sm text-gray-500 font-medium">Top 5 agents based on total revenue</p>
+            </div>
+            <div className="flex items-center gap-6">
+              <button 
+                onClick={() => onTabChange && onTabChange("agents")}
+                className="text-[10px] font-black text-orange-500 hover:text-orange-600 uppercase tracking-widest border-b-2 border-orange-100 hover:border-orange-500 transition-all pb-1"
+              >
+                View All Agents
+              </button>
+              <div className="hidden md:flex gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-orange-500" />
+                  <span className="text-xs font-bold text-gray-600">Total Leads</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-green-500" />
+                  <span className="text-xs font-bold text-gray-600">Won Leads</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500" />
+                  <span className="text-xs font-bold text-gray-600">Revenue</span>
+                </div>
               </div>
             </div>
           </div>

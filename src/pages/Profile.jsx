@@ -82,6 +82,31 @@ export default function Profile({ onUpdate }) {
     setMessage(null);
     setError(null);
 
+    // Validations
+    if (phone && !/^\d{10}$/.test(phone)) {
+      setError("Primary phone must be a valid 10-digit number");
+      setProfileLoading(false);
+      return;
+    }
+
+    if (alternatePhone && !/^\d{10}$/.test(alternatePhone)) {
+      setError("Alternate phone must be a valid 10-digit number");
+      setProfileLoading(false);
+      return;
+    }
+
+    if (aadharNumber && !/^\d{12}$/.test(aadharNumber)) {
+      setError("Aadhar number must be a valid 12-digit number");
+      setProfileLoading(false);
+      return;
+    }
+
+    if (user.role === 'ADMIN' && email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Please enter a valid email address");
+      setProfileLoading(false);
+      return;
+    }
+
     try {
       const token = localStorage.getItem("token");
       const formData = new FormData();
@@ -110,9 +135,17 @@ export default function Profile({ onUpdate }) {
       const data = await response.json();
       if (response.ok) {
         setMessage("Profile updated successfully!");
-        setUser(data.user);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        if (onUpdate) onUpdate(data.user);
+        
+        // Map backend response fields for frontend consistency
+        const updatedUser = {
+          ...data.user,
+          stateName: data.user.state?.name,
+          districtName: data.user.district?.name
+        };
+        
+        setUser(updatedUser);
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        if (onUpdate) onUpdate(updatedUser);
       } else {
         setError(data.message || "Failed to update profile");
       }
@@ -261,7 +294,10 @@ export default function Profile({ onUpdate }) {
                         type="tel"
                         required
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "");
+                          if (val.length <= 10) setPhone(val);
+                        }}
                         className="w-full pl-11 pr-4 py-3.5 bg-white border-2 border-gray-50 rounded-2xl focus:border-orange-500 outline-none transition-all text-sm font-bold text-gray-700 shadow-sm"
                         placeholder="Phone Number"
                       />
@@ -277,7 +313,10 @@ export default function Profile({ onUpdate }) {
                       <input
                         type="tel"
                         value={alternatePhone}
-                        onChange={(e) => setAlternatePhone(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "");
+                          if (val.length <= 10) setAlternatePhone(val);
+                        }}
                         className="w-full pl-11 pr-4 py-3.5 bg-white border-2 border-gray-50 rounded-2xl focus:border-orange-500 outline-none transition-all text-sm font-bold text-gray-700 shadow-sm"
                         placeholder="Alternate Phone"
                       />
@@ -291,7 +330,10 @@ export default function Profile({ onUpdate }) {
                       <input
                         type="text"
                         value={aadharNumber}
-                        onChange={(e) => setAadharNumber(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "");
+                          if (val.length <= 12) setAadharNumber(val);
+                        }}
                         className="w-full pl-11 pr-4 py-3.5 bg-white border-2 border-gray-50 rounded-2xl focus:border-orange-500 outline-none transition-all text-sm font-bold text-gray-700 shadow-sm"
                         placeholder="Aadhar Number"
                       />

@@ -94,7 +94,8 @@ const industries = [
 
 const clients = [
   {
-    name: 'Genius Minds Making Code',industry: 'elite',location: 'Madanapalli, India',initials: 'GM',logo: gmLogo,color: 'from-orange-500 to-orange-600' },
+    name: 'Genius Minds Making Code', industry: 'elite', location: 'Madanapalli, India', initials: 'GM', logo: gmLogo, color: 'from-orange-500 to-orange-600'
+  },
   { name: 'Balaji Exports', industry: 'manufacturing', location: 'Tirupati, India', initials: 'BE', color: 'from-orange-400 to-orange-500' },
   { name: 'MedCare Clinics', industry: 'healthcare', location: 'Hyderabad, India', initials: 'MC', color: 'from-orange-300 to-orange-400' },
   { name: 'FreshMart Retail', industry: 'retail', location: 'Chennai, India', initials: 'FM', color: 'from-orange-400 to-orange-500' },
@@ -163,9 +164,9 @@ function Clients() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {geographies.map((geo) => (
-              <motion.div 
-                key={geo.country} 
-                className="bg-white border-4 border-orange-500 p-6 rounded-2xl text-center group transition-all hover:shadow-xl hover:shadow-orange-100/50" 
+              <motion.div
+                key={geo.country}
+                className="bg-white border-4 border-orange-500 p-6 rounded-2xl text-center group transition-all hover:shadow-xl hover:shadow-orange-100/50"
                 whileHover={{ y: -5 }}
               >
                 <div className="font-heading text-xl font-black text-slate-900 mb-1">{geo.code}</div>
@@ -198,55 +199,54 @@ function Clients() {
                   <button
                     key={ind.value}
                     onClick={() => setActiveIndustry(ind.value)}
-                    className={`text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl transition-all ${
-                      activeIndustry === ind.value ? 'bg-orange-500 text-white shadow-lg shadow-orange-200' : 'bg-white border-2 border-orange-50 text-slate-500 hover:border-orange-500 hover:text-orange-500'
-                    }`}
+                    className={`text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl transition-all ${activeIndustry === ind.value ? 'bg-orange-500 text-white shadow-lg shadow-orange-200' : 'bg-white border-2 border-orange-50 text-slate-500 hover:border-orange-500 hover:text-orange-500'
+                      }`}
                   >
                     {ind.label}
                   </button>
                 ))}
               </div>
 
-             <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-  <AnimatePresence>
-    {filtered.map((client) => (
-      <motion.div
-        key={client.name}
-        layout
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="bg-white border-2 border-orange-50 p-4 rounded-2xl text-center shadow-sm hover:border-orange-500 transition-all hover:shadow-xl hover:shadow-orange-100/30"
-      >
+              <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+                <AnimatePresence>
+                  {filtered.map((client) => (
+                    <motion.div
+                      key={client.name}
+                      layout
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="bg-white border-2 border-orange-50 p-4 rounded-2xl text-center shadow-sm hover:border-orange-500 transition-all hover:shadow-xl hover:shadow-orange-100/30"
+                    >
 
-        {/* LOGO / INITIALS */}
-        <div className="w-10 h-10 mx-auto mb-2 flex items-center justify-center rounded-xl shadow-md overflow-hidden bg-white">
-          {client.name === 'Genius Minds Making Code' ? (
-            <img
-              src={client.logo}
-              alt={client.name}
-              className="w-full h-full object-contain"
-            />
-          ) : (
-            <div className={`w-full h-full bg-gradient-to-br ${client.color} flex items-center justify-center text-white font-black text-sm`}>
-              {client.initials}
-            </div>
-          )}
-        </div>
+                      {/* LOGO / INITIALS */}
+                      <div className="w-10 h-10 mx-auto mb-2 flex items-center justify-center rounded-xl shadow-md overflow-hidden bg-white">
+                        {client.name === 'Genius Minds Making Code' ? (
+                          <img
+                            src={client.logo}
+                            alt={client.name}
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <div className={`w-full h-full bg-gradient-to-br ${client.color} flex items-center justify-center text-white font-black text-sm`}>
+                            {client.initials}
+                          </div>
+                        )}
+                      </div>
 
-        {/* NAME */}
-        <div className="font-heading font-black text-slate-900 text-[11px] uppercase truncate tracking-tight">
-          {client.name}
-        </div>
+                      {/* NAME */}
+                      <div className="font-heading font-black text-slate-900 text-[11px] uppercase truncate tracking-tight">
+                        {client.name}
+                      </div>
 
-        {/* LOCATION */}
-        <div className="text-[9px] text-orange-500 font-bold uppercase">
-          {client.location}
-        </div>
+                      {/* LOCATION */}
+                      <div className="text-[9px] text-orange-500 font-bold uppercase">
+                        {client.location}
+                      </div>
 
-      </motion.div>
-    ))}
-  </AnimatePresence>
-</motion.div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
             </div>
           </div>
         </div>
