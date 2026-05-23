@@ -1,6 +1,8 @@
+import toast from 'react-hot-toast';
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import bgAdmin from "../assets/bgadmin.png";
+import SEO from "../components/SEO";
 
 export default function AdminLogin() {
   const [username, setUsername] = useState("");
@@ -13,7 +15,7 @@ export default function AdminLogin() {
       localStorage.setItem("role", "admin");
       navigate("/admin-dashboard");
     } else {
-      alert("Invalid Admin Credentials");
+      toast.error("Invalid Admin Credentials");
     }
   };
 
@@ -22,6 +24,10 @@ export default function AdminLogin() {
       className="relative flex items-center justify-center min-h-screen bg-cover bg-center"
       style={{ backgroundImage: `url(${bgAdmin})` }}
     >
+      <SEO 
+        title="Admin Login" 
+        description="Secure portal access for authorized administrators to manage SK Marketings business operations." 
+      />
       {/* ✅ THICKER + STRONG ORANGE SHADE (BOTTOM ONLY) */}
       <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-orange-600/90 via-orange-400/60 to-transparent pointer-events-none" />
 

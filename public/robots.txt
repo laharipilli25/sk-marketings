@@ -1,0 +1,19 @@
+o# Robots.txt for SK Marketings Lead Management & Business Consultancy
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /services
+Allow: /clients
+Allow: /contact
+Allow: /login
+Allow: /signup
+
+# Disallow crawling of internal authenticated portals
+Disallow: /admin-dashboard
+Disallow: /agent-dashboard
+Disallow: /user-dashboard
+Disallow: /reset-password/
+Disallow: /forgot-password
+
+# Link to sitemap
+Sitemap: https://skmarketings.com/sitemap.xml

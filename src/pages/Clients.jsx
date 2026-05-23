@@ -1,81 +1,113 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FaStar, FaQuoteLeft, FaChevronLeft, FaChevronRight, FaGlobeAsia } from 'react-icons/fa'
+import {
+  FaStar,
+  FaQuoteLeft,
+  FaChevronLeft,
+  FaChevronRight,
+  FaGlobeAsia,
+  FaBuilding,
+  FaBullhorn,
+  FaChartLine,
+  FaLaptopCode,
+  FaMapMarkerAlt,
+  FaAward
+} from 'react-icons/fa'
 import SEO from '../components/SEO'
 import { pageTransition, staggerContainer, staggerItem } from '../utils/animations'
 import gmLogo from '../assets/genius-minds-logo.png'
 
-// ─── Rotating 3D Cube Component ───────────────────────────────────────────────
-function ServiceCube() {
+// ─── Core Pillars Panel Component ───────────────────────────────────────────────
+const pillars = [
+  {
+    title: 'MSME Solutions',
+    desc: 'Credit & Scale Advisory',
+    icon: FaBuilding,
+    color: 'text-blue-600 bg-blue-50 border-blue-100',
+    hoverBg: 'hover:bg-blue-50/40',
+    barColor: 'bg-blue-500',
+  },
+  {
+    title: 'Brand Promotion',
+    desc: 'Multi-Channel Marketing',
+    icon: FaBullhorn,
+    color: 'text-purple-600 bg-purple-50 border-purple-100',
+    hoverBg: 'hover:bg-purple-50/40',
+    barColor: 'bg-purple-500',
+  },
+  {
+    title: 'Financial Advisory',
+    desc: 'Audit & Funding Support',
+    icon: FaChartLine,
+    color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+    hoverBg: 'hover:bg-emerald-50/40',
+    barColor: 'bg-emerald-500',
+  },
+  {
+    title: 'Digital Systems',
+    desc: 'Sleek Web & Tech Dev',
+    icon: FaLaptopCode,
+    color: 'text-cyan-600 bg-cyan-50 border-cyan-100',
+    hoverBg: 'hover:bg-cyan-50/40',
+    barColor: 'bg-cyan-500',
+  },
+  {
+    title: 'Pan-India Reach',
+    desc: 'Serving 15+ Major States',
+    icon: FaGlobeAsia,
+    color: 'text-amber-600 bg-amber-50 border-amber-100',
+    hoverBg: 'hover:bg-amber-50/40',
+    barColor: 'bg-amber-500',
+  },
+  {
+    title: 'Elite Scale',
+    desc: '500+ Active Enterprises',
+    icon: FaAward,
+    color: 'text-rose-600 bg-rose-50 border-rose-100',
+    hoverBg: 'hover:bg-rose-50/40',
+    barColor: 'bg-rose-500',
+  },
+]
+
+function CorePillarsPanel() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '8px 0 4px' }}>
-      <style>{`
-        .sk-cube-scene {
-          width: 160px;
-          height: 160px;
-          perspective: 500px;
-        }
-        .sk-cube {
-          width: 160px;
-          height: 160px;
-          position: relative;
-          transform-style: preserve-3d;
-          animation: skSpin 14s linear infinite;
-        }
-        .sk-face {
-          position: absolute;
-          width: 160px;
-          height: 160px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 12px;
-          backface-visibility: hidden;
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
-        }
-        .sk-face-front  { transform: rotateY(  0deg) translateZ(80px); }
-        .sk-face-back   { transform: rotateY(180deg) translateZ(80px); }
-        .sk-face-right  { transform: rotateY( 90deg) translateZ(80px); }
-        .sk-face-left   { transform: rotateY(-90deg) translateZ(80px); }
-        .sk-face-top    { transform: rotateX( 90deg) translateZ(80px); }
-        .sk-face-bottom { transform: rotateX(-90deg) translateZ(80px); }
-        @keyframes skSpin {
-          0%   { transform: rotateX(12deg) rotateY(0deg);   }
-          100% { transform: rotateX(12deg) rotateY(360deg); }
-        }
-      `}</style>
+    <div className="w-full flex flex-col gap-3.5">
+      <div className="text-center pb-3 border-b border-slate-100">
+        <span className="text-[10px] font-extrabold tracking-[0.2em] uppercase text-orange-500 font-heading">
+          Our Focus
+        </span>
+        <h3 className="font-heading text-base font-black text-slate-800 tracking-tight mt-1">
+          Core Competencies
+        </h3>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {pillars.map((pillar) => {
+          const Icon = pillar.icon
+          return (
+            <motion.div
+              key={pillar.title}
+              whileHover={{ x: 6 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              className={`flex items-center gap-3 p-2 rounded-xl border border-transparent ${pillar.hoverBg} transition-colors group cursor-default relative overflow-hidden`}
+            >
+              {/* Left active accent bar */}
+              <div className={`absolute left-0 top-1/4 bottom-1/4 w-0.5 rounded-r-md ${pillar.barColor} scale-y-0 group-hover:scale-y-100 transition-transform origin-center`} />
 
-      <span className="text-[9px] font-black tracking-[0.2em] uppercase text-orange-500 font-heading">Our Focus</span>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${pillar.color} shadow-sm group-hover:scale-110 transition-transform`}>
+                <Icon size={14} />
+              </div>
 
-      <div className="sk-cube-scene">
-        <div className="sk-cube text-white">
-          <div className="sk-face sk-face-front">
-            <span className="text-2xl mb-1">🏛️</span>
-            <div className="font-bold text-xs uppercase tracking-tighter">MSME</div>
-          </div>
-          <div className="sk-face sk-face-back">
-            <span className="text-2xl mb-1">📣</span>
-            <div className="font-bold text-xs uppercase tracking-tighter">Promo</div>
-          </div>
-          <div className="sk-face sk-face-right">
-            <span className="text-2xl mb-1">📈</span>
-            <div className="font-bold text-xs uppercase tracking-tighter">Finance</div>
-          </div>
-          <div className="sk-face sk-face-left">
-            <span className="text-2xl mb-1">🌐</span>
-            <div className="font-bold text-xs uppercase tracking-tighter">Digital</div>
-          </div>
-          <div className="sk-face sk-face-top">
-            <span className="text-2xl mb-1">🇮🇳</span>
-            <div className="font-bold text-xs uppercase tracking-tighter">India</div>
-          </div>
-          <div className="sk-face sk-face-bottom">
-            <span className="text-2xl mb-1">⭐</span>
-            <div className="font-bold text-xs uppercase tracking-tighter">500+</div>
-          </div>
-        </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-heading font-black text-[11px] text-slate-800 uppercase tracking-tight group-hover:text-orange-500 transition-colors">
+                  {pillar.title}
+                </div>
+                <div className="font-body text-[9px] text-slate-500 font-bold truncate">
+                  {pillar.desc}
+                </div>
+              </div>
+            </motion.div>
+          )
+        })}
       </div>
     </div>
   )
@@ -90,20 +122,22 @@ const industries = [
   { label: 'Healthcare', value: 'healthcare' },
   { label: 'Retail', value: 'retail' },
   { label: 'Technology', value: 'technology' },
+  { label: 'Real Estate', value: 'realestate' },
+  { label: 'Education', value: 'education' },
 ]
 
 const clients = [
   {
-    name: 'Genius Minds Making Code', industry: 'elite', location: 'Madanapalli, India', initials: 'GM', logo: gmLogo, color: 'from-orange-500 to-orange-600'
+    name: 'Genius Minds Making Code', industry: 'elite', location: 'Madanapalli, India', initials: 'GM', logo: gmLogo, color: 'from-orange-500 to-amber-600'
   },
-  { name: 'Balaji Exports', industry: 'manufacturing', location: 'Tirupati, India', initials: 'BE', color: 'from-orange-400 to-orange-500' },
-  { name: 'MedCare Clinics', industry: 'healthcare', location: 'Hyderabad, India', initials: 'MC', color: 'from-orange-300 to-orange-400' },
-  { name: 'FreshMart Retail', industry: 'retail', location: 'Chennai, India', initials: 'FM', color: 'from-orange-400 to-orange-500' },
-  { name: 'TechNova Solutions', industry: 'technology', location: 'Bangalore, India', initials: 'TN', color: 'from-orange-300 to-orange-400' },
-  { name: 'Skyline Realtors', industry: 'realestate', location: 'Mumbai, India', initials: 'SR', color: 'from-orange-400 to-orange-500' },
-  { name: 'BrightMinds Academy', industry: 'education', location: 'Delhi, India', initials: 'BA', color: 'from-orange-300 to-orange-400' },
-  { name: 'Gulf Trade LLC', industry: 'manufacturing', location: 'Dubai, UAE', initials: 'GT', color: 'from-orange-400 to-orange-500' },
-  { name: 'Müller Handels GmbH', industry: 'retail', location: 'Frankfurt, Germany', initials: 'MH', color: 'from-orange-300 to-orange-400' },
+  { name: 'Balaji Exports', industry: 'manufacturing', location: 'Tirupati, India', initials: 'BE', color: 'from-blue-500 to-indigo-600' },
+  { name: 'MedCare Clinics', industry: 'healthcare', location: 'Hyderabad, India', initials: 'MC', color: 'from-emerald-400 to-teal-600' },
+  { name: 'FreshMart Retail', industry: 'retail', location: 'Chennai, India', initials: 'FM', color: 'from-amber-400 to-orange-500' },
+  { name: 'TechNova Solutions', industry: 'technology', location: 'Bangalore, India', initials: 'TN', color: 'from-cyan-500 to-blue-600' },
+  { name: 'Skyline Realtors', industry: 'realestate', location: 'Mumbai, India', initials: 'SR', color: 'from-purple-500 to-indigo-600' },
+  { name: 'BrightMinds Academy', industry: 'education', location: 'Delhi, India', initials: 'BA', color: 'from-violet-500 to-fuchsia-600' },
+  { name: 'Gulf Trade LLC', industry: 'manufacturing', location: 'Dubai, UAE', initials: 'GT', color: 'from-slate-600 to-slate-800' },
+  { name: 'Müller Handels GmbH', industry: 'retail', location: 'Frankfurt, Germany', initials: 'MH', color: 'from-rose-500 to-red-600' },
 ]
 
 const testimonials = [
@@ -159,19 +193,23 @@ function Clients() {
         </div>
       </section>
 
-      {/* Geographic Presence - BORDERS ADDED HERE */}
+      {/* Geographic Presence */}
       <section className="py-12 bg-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {geographies.map((geo) => (
               <motion.div
                 key={geo.country}
-                className="bg-white border-4 border-orange-500 p-6 rounded-2xl text-center group transition-all hover:shadow-xl hover:shadow-orange-100/50"
-                whileHover={{ y: -5 }}
+                className="bg-white border border-slate-100 p-5 rounded-2xl text-center group transition-all hover:shadow-xl hover:shadow-orange-100/20 hover:border-orange-500 relative overflow-hidden"
+                whileHover={{ y: -6 }}
               >
-                <div className="font-heading text-xl font-black text-slate-900 mb-1">{geo.code}</div>
-                <div className="font-heading text-2xl font-black text-orange-500">{geo.count}</div>
-                <div className="font-body font-black text-slate-400 uppercase text-[9px] tracking-widest">{geo.country}</div>
+                <div className="flex items-center justify-between mb-3 text-slate-400 text-xs font-black">
+                  <span className="text-lg filter drop-shadow-sm leading-none">{geo.flag}</span>
+                  <span className="font-heading tracking-wider text-[9px] text-slate-400 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md uppercase font-black">{geo.code}</span>
+                </div>
+                <div className="font-heading text-3xl font-black text-orange-500 tracking-tight group-hover:scale-105 transition-transform">{geo.count}</div>
+                <div className="font-body font-extrabold text-slate-700 text-[10px] uppercase tracking-wider mt-1">{geo.country}</div>
+                <div className="font-body text-[9px] text-slate-400 font-bold mt-1.5">{geo.desc}</div>
               </motion.div>
             ))}
           </div>
@@ -182,69 +220,119 @@ function Clients() {
       <section className="py-12 bg-orange-50/20">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex flex-col lg:flex-row gap-8 items-start">
-            {/* LEFT — Cube card */}
+            {/* LEFT — Focus card */}
             <div className="w-full lg:w-64 flex-shrink-0 mx-auto lg:mx-0">
-              <div className="bg-white border-2 border-orange-50 shadow-2xl shadow-orange-100/50 rounded-[2rem] p-6 flex flex-col items-center group hover:border-orange-500 transition-colors">
-                <ServiceCube />
-                <div className="mt-4 text-center">
-                  <h3 className="font-heading text-sm font-black text-slate-900 uppercase tracking-tighter">SK Marketings</h3>
-                </div>
+              <div className="bg-white border border-slate-100 shadow-2xl shadow-slate-100 rounded-[2rem] p-6 flex flex-col items-center group hover:border-orange-500 transition-colors">
+                <CorePillarsPanel />
               </div>
             </div>
 
             {/* RIGHT — Filter & Grid */}
             <div className="flex-1 w-full">
               <div className="flex flex-wrap gap-2 mb-8 justify-center lg:justify-start">
-                {industries.map((ind) => (
-                  <button
-                    key={ind.value}
-                    onClick={() => setActiveIndustry(ind.value)}
-                    className={`text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl transition-all ${activeIndustry === ind.value ? 'bg-orange-500 text-white shadow-lg shadow-orange-200' : 'bg-white border-2 border-orange-50 text-slate-500 hover:border-orange-500 hover:text-orange-500'
-                      }`}
-                  >
-                    {ind.label}
-                  </button>
-                ))}
+                {industries.map((ind) => {
+                  const count = ind.value === 'all' ? clients.length : clients.filter((c) => c.industry === ind.value).length
+                  const isActive = activeIndustry === ind.value
+                  return (
+                    <button
+                      key={ind.value}
+                      onClick={() => setActiveIndustry(ind.value)}
+                      className={`text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 border-2 ${isActive
+                          ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-100'
+                          : 'bg-white border-slate-100 text-slate-500 hover:border-orange-500 hover:text-orange-500'
+                        }`}
+                    >
+                      <span>{ind.label}</span>
+                      <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded-md transition-colors ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                        }`}>
+                        {count}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
 
-              <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+              <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
                 <AnimatePresence>
-                  {filtered.map((client) => (
-                    <motion.div
-                      key={client.name}
-                      layout
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="bg-white border-2 border-orange-50 p-4 rounded-2xl text-center shadow-sm hover:border-orange-500 transition-all hover:shadow-xl hover:shadow-orange-100/30"
-                    >
+                  {filtered.map((client) => {
+                    const getIndustryBadge = (industry) => {
+                      switch (industry) {
+                        case 'elite':
+                          return { label: 'Elite Partner', styles: 'bg-rose-50 text-rose-600 border-rose-100' }
+                        case 'manufacturing':
+                          return { label: 'Manufacturing', styles: 'bg-blue-50 text-blue-600 border-blue-100' }
+                        case 'healthcare':
+                          return { label: 'Healthcare', styles: 'bg-emerald-50 text-emerald-600 border-emerald-100' }
+                        case 'retail':
+                          return { label: 'Retail', styles: 'bg-amber-50 text-amber-600 border-amber-100' }
+                        case 'technology':
+                          return { label: 'Technology', styles: 'bg-cyan-50 text-cyan-600 border-cyan-100' }
+                        case 'realestate':
+                          return { label: 'Real Estate', styles: 'bg-purple-50 text-purple-600 border-purple-100' }
+                        case 'education':
+                          return { label: 'Education', styles: 'bg-indigo-50 text-indigo-600 border-indigo-100' }
+                        default:
+                          return { label: industry, styles: 'bg-slate-50 text-slate-600 border-slate-100' }
+                      }
+                    }
+                    const badge = getIndustryBadge(client.industry)
 
-                      {/* LOGO / INITIALS */}
-                      <div className="w-10 h-10 mx-auto mb-2 flex items-center justify-center rounded-xl shadow-md overflow-hidden bg-white">
-                        {client.name === 'Genius Minds Making Code' ? (
-                          <img
-                            src={client.logo}
-                            alt={client.name}
-                            className="w-full h-full object-contain"
-                          />
-                        ) : (
-                          <div className={`w-full h-full bg-gradient-to-br ${client.color} flex items-center justify-center text-white font-black text-sm`}>
-                            {client.initials}
+                    return (
+                      <motion.div
+                        key={client.name}
+                        layout
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        whileHover={{ y: -6 }}
+                        className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm hover:border-orange-500 transition-all hover:shadow-2xl hover:shadow-orange-100/30 flex flex-col justify-between items-center group relative overflow-hidden min-h-[220px]"
+                      >
+                        {/* Industry Badge at top left */}
+                        <div className="w-full flex justify-between items-center mb-1">
+                          <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${badge.styles}`}>
+                            {badge.label}
+                          </span>
+                          <span className="text-[9px] text-orange-500 font-extrabold flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <FaStar size={8} />
+                            Partner
+                          </span>
+                        </div>
+
+                        {/* LOGO SHOWCASE AREA (LARGE & RECTANGULAR) */}
+                        <div className="w-full h-24 flex items-center justify-center mb-2 mt-1 relative">
+                          {client.name === 'Genius Minds Making Code' ? (
+                            <div className="w-full h-full flex items-center justify-center p-2 rounded-2xl bg-slate-50/50 border border-slate-100/50 group-hover:bg-slate-50 transition-colors">
+                              <img
+                                src={client.logo}
+                                alt={client.name}
+                                className="max-h-full max-w-full object-contain filter drop-shadow-sm group-hover:scale-105 transition-transform duration-300"
+                              />
+                            </div>
+                          ) : (
+                            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${client.color} flex items-center justify-center text-white font-black text-lg shadow-md group-hover:scale-110 transition-transform duration-300 relative overflow-hidden`}>
+                              <div className="absolute inset-0 bg-white/10 mix-blend-overlay opacity-40" />
+                              <span className="relative tracking-tighter">{client.initials}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* TEXT INFO (CENTERED & UNIFORM) */}
+                        <div className="w-full text-center mt-auto">
+                          {/* NAME with line clamp instead of truncate to handle longer names beautifully */}
+                          <div className="font-heading font-black text-slate-800 text-[12px] uppercase tracking-tight w-full min-h-[32px] flex items-center justify-center px-1 leading-tight group-hover:text-orange-500 transition-colors">
+                            <span className="line-clamp-2">{client.name}</span>
                           </div>
-                        )}
-                      </div>
 
-                      {/* NAME */}
-                      <div className="font-heading font-black text-slate-900 text-[11px] uppercase truncate tracking-tight">
-                        {client.name}
-                      </div>
+                          {/* LOCATION */}
+                          <div className="flex items-center justify-center gap-1 text-[8px] text-slate-400 font-extrabold uppercase tracking-widest mt-1.5">
+                            <FaMapMarkerAlt className="text-orange-500/70" size={9} />
+                            <span>{client.location}</span>
+                          </div>
+                        </div>
 
-                      {/* LOCATION */}
-                      <div className="text-[9px] text-orange-500 font-bold uppercase">
-                        {client.location}
-                      </div>
-
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    )
+                  })}
                 </AnimatePresence>
               </motion.div>
             </div>

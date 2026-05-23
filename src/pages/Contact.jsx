@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
@@ -90,10 +91,10 @@ function Contact() {
         setSubmitted(true)
         setForm({ name: '', phone: '', email: '', service: '', message: '', location: '' })
       } else {
-        alert('Failed to submit inquiry. Please try again.')
+        toast.error('Failed to submit inquiry. Please try again.')
       }
     } catch (error) {
-      alert('Network error. Please try again.')
+      toast.error('Network error. Please try again.')
     } finally {
       setLoading(false)
     }

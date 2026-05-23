@@ -12,7 +12,8 @@ import {
   FaChartBar,
   FaShieldAlt,
   FaPlus,
-  FaTimes
+  FaTimes,
+  FaUserCheck
 } from "react-icons/fa";
 import skLogo from "../assets/sklogo.png";
 
@@ -20,12 +21,20 @@ const ADMIN_MODULES = [
   { id: "dashboard", label: "Dashboard", icon: <FaChartPie /> },
   { id: "leads", label: "All Leads", icon: <FaClipboardList /> },
   { id: "agents", label: "Manage Agents", icon: <FaUsers /> },
+  { id: "managers", label: "Manage Managers", icon: <FaUserCircle /> },
   { id: "inquiries", label: "Inquiries", icon: <FaEnvelope /> },
 ];
 
 const AGENT_MODULES = [
   { id: "dashboard", label: "Dashboard", icon: <FaChartPie /> },
   { id: "leads", label: "My Leads", icon: <FaClipboardList /> },
+  { id: "customers", label: "My Customers", icon: <FaUserCheck /> },
+];
+
+const MANAGER_MODULES = [
+  { id: "dashboard", label: "Dashboard", icon: <FaChartPie /> },
+  { id: "leads", label: "My Leads", icon: <FaClipboardList /> },
+  { id: "agents", label: "Manage Agents", icon: <FaUsers /> },
 ];
 
 const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }) => {
@@ -49,7 +58,8 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }) => {
   }, [navigate]);
 
   const isAdmin = user?.role === "ADMIN";
-  const modules = isAdmin ? ADMIN_MODULES : AGENT_MODULES;
+  const isManager = user?.role === "MANAGER";
+  const modules = isAdmin ? ADMIN_MODULES : (isManager ? MANAGER_MODULES : AGENT_MODULES);
 
   const handleTabClick = useCallback((id) => {
     setActiveTab(id);
@@ -119,11 +129,12 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
           {modules.map((module) => (
             <button
               key={module.id}
               onClick={() => handleTabClick(module.id)}
+              title={isCollapsed && !isOpen ? module.label : ""}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative ${activeTab === module.id
                 ? "bg-orange-600 text-white shadow-md shadow-orange-100"
                 : "text-gray-500 hover:bg-orange-50 hover:text-orange-600"
@@ -134,13 +145,6 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }) => {
               </div>
               {(!isCollapsed || isOpen) && (
                 <span className="font-bold text-xs tracking-wide">{module.label}</span>
-              )}
-
-              {/* Tooltip for collapsed state (Desktop only) */}
-              {isCollapsed && !isOpen && (
-                <div className="absolute left-full ml-4 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all whitespace-nowrap z-[100] hidden lg:block">
-                  {module.label}
-                </div>
               )}
             </button>
           ))}

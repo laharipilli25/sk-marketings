@@ -1,6 +1,8 @@
+import toast from 'react-hot-toast';
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaPhone, FaUser, FaMapMarkerAlt, FaFileAlt } from "react-icons/fa";
+import SEO from "../components/SEO";
 
 export default function UserDashboard() {
   // Added 'phone' to the state
@@ -26,7 +28,7 @@ export default function UserDashboard() {
 
   const handleSubmit = () => {
     // Included phone validation
-    if (!form.name || !form.phone || !form.village) return alert("Please fill all required details");
+    if (!form.name || !form.phone || !form.village) return toast.error("Please fill all required details");
 
     if (editIndex !== null) {
       const updated = [...data];
@@ -42,6 +44,10 @@ export default function UserDashboard() {
 
   return (
     <div className="min-h-screen mt-24 relative overflow-hidden">
+      <SEO 
+        title="Management Dashboard" 
+        description="Submit client details and track progress records securely on the SK Marketings management portal." 
+      />
       {/* ─── SHARED BACKGROUND LAYER ─── */}
       <div 
         className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"

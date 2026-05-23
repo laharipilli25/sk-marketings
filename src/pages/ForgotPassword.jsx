@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaEnvelope, FaArrowLeft, FaSpinner } from "react-icons/fa";
 import bgUser from "../assets/bguser.jpg";
+import SEO from "../components/SEO";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -41,6 +42,10 @@ export default function ForgotPassword() {
 
   return (
     <div className="min-h-screen relative flex items-center justify-center pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+      <SEO 
+        title="Forgot Password" 
+        description="Recover and reset your password securely to access the SK Marketings admin or agent dashboard." 
+      />
       {/* Background Image */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"

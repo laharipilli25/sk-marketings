@@ -34,23 +34,23 @@ const StatCard = ({ icon, label, value, subtext, color, trend, onClick }) => (
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true }}
     onClick={onClick}
-    className={`bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col gap-4 group hover:shadow-xl hover:border-orange-200 transition-all cursor-pointer`}
+    className={`bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-2 md:gap-3 group hover:shadow-xl hover:border-orange-200 transition-all cursor-pointer`}
   >
     <div className="flex justify-between items-start">
-      <div className={`w-14 h-14 rounded-2xl ${color} flex items-center justify-center text-white shadow-lg shadow-gray-100 group-hover:scale-110 transition-transform`}>
+      <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl ${color} flex items-center justify-center text-white shadow-lg shadow-gray-100 group-hover:scale-110 transition-transform`}>
         {icon}
       </div>
       {trend !== undefined && (
-        <div className={`flex items-center gap-1 text-xs font-bold ${trend > 0 ? "text-green-600" : "text-red-600"}`}>
+        <div className={`flex items-center gap-1 text-[9px] md:text-[10px] font-bold ${trend > 0 ? "text-green-600" : "text-red-600"}`}>
           {trend > 0 ? <FaArrowUp /> : <FaArrowDown />}
           {Math.abs(trend)}%
         </div>
       )}
     </div>
     <div>
-      <div className="text-3xl font-black text-gray-900 mb-1">{value}</div>
-      <div className="text-sm font-bold text-gray-500 uppercase tracking-wider">{label}</div>
-      {subtext && <div className="text-xs text-gray-400 mt-2">{subtext}</div>}
+      <div className="text-lg md:text-xl font-black text-gray-900 mb-0.5">{value}</div>
+      <div className="text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest leading-tight">{label}</div>
+      {subtext && <div className="text-[8px] md:text-[9px] text-gray-400 mt-1">{subtext}</div>}
     </div>
   </motion.div>
 );
@@ -126,13 +126,13 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
   };
 
   return (
-    <div className="space-y-8 pb-10">
+    <div className="space-y-4 pb-6">
       {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {isAdmin ? (
           <>
             <StatCard 
-              icon={<FaClipboardList size={24} />} 
+              icon={<FaClipboardList size={18} />} 
               label="Total Leads" 
               value={leads.length} 
               color="bg-blue-600" 
@@ -141,7 +141,7 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
               onClick={() => onTabChange && onTabChange("leads")}
             />
             <StatCard 
-              icon={<FaUsers size={24} />} 
+              icon={<FaUsers size={18} />} 
               label="Active Agents" 
               value={agents.filter(a => a.status === "ACTIVE").length} 
               color="bg-orange-600" 
@@ -149,7 +149,7 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
               onClick={() => onTabChange && onTabChange("agents")}
             />
             <StatCard 
-              icon={<FaEnvelope size={24} />} 
+              icon={<FaEnvelope size={18} />} 
               label="New Inquiries" 
               value={inquiries.filter(i => i.status === "NEW").length} 
               color="bg-purple-600" 
@@ -157,7 +157,7 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
               onClick={() => onTabChange && onTabChange("inquiries")}
             />
             <StatCard 
-              icon={<FaMoneyBillWave size={24} />} 
+              icon={<FaMoneyBillWave size={18} />} 
               label="Total Revenue" 
               value={`₹${leads.reduce((sum, l) => sum + (parseFloat(l.paid_amount) || 0), 0).toLocaleString()}`} 
               color="bg-green-600" 
@@ -168,7 +168,7 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
         ) : (
           <>
             <StatCard 
-              icon={<FaClipboardList size={24} />} 
+              icon={<FaClipboardList size={18} />} 
               label="My Leads" 
               value={leads.length} 
               color="bg-orange-600" 
@@ -176,7 +176,7 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
               onClick={() => onTabChange && onTabChange("leads")}
             />
             <StatCard 
-              icon={<FaCheckCircle size={24} />} 
+              icon={<FaCheckCircle size={18} />} 
               label="Leads Won" 
               value={leads.filter(l => l.status === "WON").length} 
               color="bg-green-600" 
@@ -184,7 +184,7 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
               subtext="Closing rate (%)"
             />
             <StatCard 
-              icon={<FaClock size={24} />} 
+              icon={<FaClock size={18} />} 
               label="In Progress" 
               value={leads.filter(l => ["NEW", "CONTACTED", "FOLLOW_UP"].includes(l.status)).length} 
               color="bg-blue-600" 
@@ -192,7 +192,7 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
               onClick={() => onTabChange && onTabChange("leads")}
             />
             <StatCard 
-              icon={<FaMoneyBillWave size={24} />} 
+              icon={<FaMoneyBillWave size={18} />} 
               label="My Earnings" 
               value={`₹${leads.reduce((sum, l) => sum + (parseFloat(l.paid_amount) || 0), 0).toLocaleString()}`} 
               color="bg-purple-600" 
@@ -203,31 +203,31 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
       </div>
 
       {/* Main Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Growth Chart */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
-          className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 min-w-0"
+          className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 min-w-0"
         >
-          <div className="flex justify-between items-center mb-8">
+          <div className="flex justify-between items-center mb-4">
             <div>
-              <h3 className="text-xl font-black text-gray-900">Performance Trends</h3>
-              <p className="text-sm text-gray-500 font-medium">Monthly leads vs actual revenue</p>
+              <h3 className="text-lg font-black text-gray-900">Performance Trends</h3>
+              <p className="text-xs text-gray-500 font-medium">Monthly leads vs actual revenue</p>
             </div>
             <div className="flex gap-4">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-orange-500" />
-                <span className="text-xs font-bold text-gray-600">Leads</span>
+                <div className="w-2 h-2 rounded-full bg-orange-500" />
+                <span className="text-[10px] font-bold text-gray-600 uppercase">Leads</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500" />
-                <span className="text-xs font-bold text-gray-600">Revenue</span>
+                <div className="w-2 h-2 rounded-full bg-blue-500" />
+                <span className="text-[10px] font-bold text-gray-600 uppercase">Revenue</span>
               </div>
             </div>
           </div>
-          <div className="h-[300px] w-full">
+          <div className="h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={leadGrowthData}>
                 <defs>
@@ -245,21 +245,21 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
                   dataKey="name" 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: "#94a3b8", fontSize: 12, fontWeight: 600 }} 
+                  tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 600 }} 
                   dy={10}
                 />
                 <YAxis 
                   yAxisId="left"
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: "#94a3b8", fontSize: 12, fontWeight: 600 }}
+                  tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 600 }}
                 />
                 <YAxis 
                   yAxisId="right"
                   orientation="right"
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: "#94a3b8", fontSize: 12, fontWeight: 600 }}
+                  tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 600 }}
                   tickFormatter={(val) => `₹${val >= 1000 ? (val/1000) + 'k' : val}`}
                 />
                 <Tooltip 
@@ -268,7 +268,8 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
                     borderRadius: "1rem", 
                     border: "none", 
                     boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                    padding: "1rem"
+                    padding: "0.5rem",
+                    fontSize: "12px"
                   }} 
                 />
                 <Area 
@@ -276,7 +277,7 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
                   type="monotone" 
                   dataKey="leads" 
                   stroke="#f97316" 
-                  strokeWidth={3}
+                  strokeWidth={2}
                   fillOpacity={1} 
                   fill="url(#colorLeads)" 
                 />
@@ -285,7 +286,7 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
                   type="monotone" 
                   dataKey="revenue" 
                   stroke="#3b82f6" 
-                  strokeWidth={3}
+                  strokeWidth={2}
                   fillOpacity={1} 
                   fill="url(#colorRevenue)" 
                 />
@@ -299,18 +300,18 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
           initial={{ opacity: 0, x: 20 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
-          className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 min-w-0"
+          className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 min-w-0"
         >
-          <h3 className="text-xl font-black text-gray-900 mb-8">Lead Status Distribution</h3>
-          <div className="h-[300px] w-full relative text-xs">
+          <h3 className="text-lg font-black text-gray-900 mb-4">Lead Status Distribution</h3>
+          <div className="h-[250px] w-full relative text-[10px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={leadStatusData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
+                  innerRadius={50}
+                  outerRadius={80}
                   paddingAngle={5}
                   dataKey="value"
                 >
@@ -322,14 +323,15 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
                    contentStyle={{ 
                     borderRadius: "1rem", 
                     border: "none", 
-                    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)"
+                    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                    fontSize: "12px"
                   }} 
                 />
                 <Legend 
                   verticalAlign="bottom" 
-                  height={36} 
+                  height={30} 
                   iconType="circle"
-                  formatter={(value) => <span className="text-xs font-bold text-gray-600 uppercase">{value}</span>}
+                  formatter={(value) => <span className="text-[10px] font-bold text-gray-600 uppercase">{value}</span>}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -343,37 +345,37 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 min-w-0"
+          className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 min-w-0"
         >
-          <div className="flex justify-between items-center mb-8">
+          <div className="flex justify-between items-center mb-4">
             <div>
-              <h3 className="text-xl font-black text-gray-900">Top Performing Agents</h3>
-              <p className="text-sm text-gray-500 font-medium">Top 5 agents based on total revenue</p>
+              <h3 className="text-lg font-black text-gray-900">Top Performing Agents</h3>
+              <p className="text-xs text-gray-500 font-medium">Top 5 agents based on total revenue</p>
             </div>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
               <button 
                 onClick={() => onTabChange && onTabChange("agents")}
-                className="text-[10px] font-black text-orange-500 hover:text-orange-600 uppercase tracking-widest border-b-2 border-orange-100 hover:border-orange-500 transition-all pb-1"
+                className="text-[9px] font-black text-orange-500 hover:text-orange-600 uppercase tracking-widest border-b-2 border-orange-100 hover:border-orange-500 transition-all pb-1"
               >
-                View All Agents
+                View All
               </button>
-              <div className="hidden md:flex gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-orange-500" />
-                  <span className="text-xs font-bold text-gray-600">Total Leads</span>
+              <div className="hidden md:flex gap-3">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-orange-500" />
+                  <span className="text-[10px] font-bold text-gray-600 uppercase">Leads</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
-                  <span className="text-xs font-bold text-gray-600">Won Leads</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                  <span className="text-[10px] font-bold text-gray-600 uppercase">Won</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500" />
-                  <span className="text-xs font-bold text-gray-600">Revenue</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-blue-500" />
+                  <span className="text-[10px] font-bold text-gray-600 uppercase">Revenue</span>
                 </div>
               </div>
             </div>
           </div>
-          <div className="h-[300px] w-full">
+          <div className="h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={agentPerformanceData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -381,21 +383,21 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
                   dataKey="name" 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: "#94a3b8", fontSize: 12, fontWeight: 600 }}
+                  tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 600 }}
                   dy={10}
                 />
                 <YAxis 
                   yAxisId="left"
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: "#94a3b8", fontSize: 12, fontWeight: 600 }}
+                  tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 600 }}
                 />
                 <YAxis 
                   yAxisId="right"
                   orientation="right"
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: "#94a3b8", fontSize: 12, fontWeight: 600 }}
+                  tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 600 }}
                   tickFormatter={(val) => `₹${val >= 1000 ? (val/1000) + 'k' : val}`}
                 />
                 <Tooltip 
@@ -403,12 +405,13 @@ export default function Dashboard({ role, leads = [], agents = [], inquiries = [
                    contentStyle={{ 
                     borderRadius: "1rem", 
                     border: "none", 
-                    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)"
+                    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                    fontSize: "12px"
                   }} 
                 />
-                <Bar yAxisId="left" dataKey="leads" fill="#f97316" radius={[4, 4, 0, 0]} barSize={16} />
-                <Bar yAxisId="left" dataKey="won" fill="#10b981" radius={[4, 4, 0, 0]} barSize={16} />
-                <Bar yAxisId="right" dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={16} />
+                <Bar yAxisId="left" dataKey="leads" fill="#f97316" radius={[2, 2, 0, 0]} barSize={12} />
+                <Bar yAxisId="left" dataKey="won" fill="#10b981" radius={[2, 2, 0, 0]} barSize={12} />
+                <Bar yAxisId="right" dataKey="revenue" fill="#3b82f6" radius={[2, 2, 0, 0]} barSize={12} />
               </BarChart>
             </ResponsiveContainer>
           </div>

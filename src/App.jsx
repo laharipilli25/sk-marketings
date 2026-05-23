@@ -1,7 +1,7 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { useEffect } from 'react'   // ✅ ADDED
-
+import { Toaster } from 'react-hot-toast'
 import Layout from './layouts/Layout'
 import Home from './pages/Home'
 import About from './pages/About'
@@ -17,6 +17,7 @@ import AdminLogin from './pages/AdminLogin'
 import UserDashboard from './pages/UserDashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import AgentDashboard from './pages/AgentDashboard'
+import ManagerDashboard from './pages/ManagerDashboard'
 import SignUp from './pages/SignUp'
 import ViewPage from './pages/ViewPage'
 import ForgotPassword from './pages/ForgotPassword'
@@ -32,6 +33,7 @@ function App() {
 
   return (
     <>
+      <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
       <Layout>
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
@@ -48,6 +50,7 @@ function App() {
             {/* Dashboard Routes */}
             <Route path="/agent-dashboard" element={<AgentDashboard />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
+            <Route path="/manager-dashboard" element={<ManagerDashboard />} />
 
             {/* Legacy Routes (for backward compatibility) */}
             <Route path="/user-dashboard" element={<AgentDashboard />} />

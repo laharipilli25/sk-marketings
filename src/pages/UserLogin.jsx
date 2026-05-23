@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { FaLock, FaUserAlt, FaArrowRight, FaSpinner, FaPlus, FaHome } from "react-icons/fa";
 import bgUser from "../assets/bguser.jpg";
 import skLogo from "../assets/sklogo.png";
+import SEO from "../components/SEO";
 
 const API_URL = import.meta.env.VITE_API_URL; // SK Marketings Backend
 
@@ -39,6 +40,22 @@ export default function UserLogin() {
       // Redirect based on role
       if (data.user.role === "ADMIN") {
         window.location.href = "/admin-dashboard";
+      } else if (data.user.role === "MANAGER") {
+        if (data.user.status === "PENDING") {
+          setError("Your account is pending approval. Please wait for admin approval.");
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+        } else if (data.user.status === "REJECTED") {
+          setError("Your account has been rejected. Please contact admin.");
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+        } else if (data.user.status === "INACTIVE") {
+          setError("Your account is inactive. Please contact admin.");
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+        } else {
+          window.location.href = "/manager-dashboard";
+        }
       } else if (data.user.role === "AGENT") {
         if (data.user.status === "PENDING") {
           setError("Your account is pending approval. Please wait for admin approval.");
@@ -65,6 +82,10 @@ export default function UserLogin() {
 
   return (
     <div className="flex h-screen bg-white font-body overflow-hidden">
+      <SEO 
+        title="Login" 
+        description="Securely access the SK Marketings Admin and Agent portal. Manage MSME business registration, leads, and digital marketing services." 
+      />
       {/* LEFT SIDE - BRAND HIGHLIGHTS (Hidden on mobile) */}
       <div className="hidden lg:flex lg:w-[60%] relative overflow-hidden bg-slate-900">
         {/* Background Image with Overlay */}

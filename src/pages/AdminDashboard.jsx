@@ -1,6 +1,8 @@
+import toast from 'react-hot-toast';
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+
 import {
   FaUsers,
   FaClipboardList,
@@ -32,11 +34,17 @@ import {
   FaTimes,
   FaLock,
   FaEnvelopeOpenText,
+  FaFileExcel,
+  FaFilePdf
 } from "react-icons/fa";
 import Dashboard from "../components/Dashboard";
 import Sidebar from "../components/Sidebar";
 import DashboardHeader from "../components/DashboardHeader";
+
 import Profile from "./Profile";
+import ManageManagers from "./Admin/Manage_Managers";
+import { exportToExcel, exportToPDF } from "../utils/exportUtils";
+import SEO from "../components/SEO";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -62,6 +70,12 @@ export default function AdminDashboard() {
   const [leadsCurrentPage, setLeadsCurrentPage] = useState(1);
   const [leadsTotalPages, setLeadsTotalPages] = useState(1);
 
+  // Paginated Agents State
+  const [paginatedAgents, setPaginatedAgents] = useState([]);
+  const [agentsCurrentPage, setAgentsCurrentPage] = useState(1);
+  const [agentsTotalPages, setAgentsTotalPages] = useState(1);
+
+
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
@@ -76,13 +90,13 @@ export default function AdminDashboard() {
     state: "",
     district_id: "",
     district: "",
-    mandal: "",
+    mandal_id: "",
     village: "",
-    pincode: "",
+    aadharNumber: "",
+    alternatePhone: "",
   });
 
   const [mandalSuggestions, setMandalSuggestions] = useState([]);
-  const [pincodeLoading, setPincodeLoading] = useState(false);
 
   // Agent Leads Modal
   const [showAgentLeads, setShowAgentLeads] = useState(false);
@@ -112,12 +126,11 @@ export default function AdminDashboard() {
     state: "",
     district_id: "",
     district: "",
-    mandal: "",
+    mandal_id: "",
     village: "",
     aadharNumber: "",
     alternatePhone: "",
     status: "",
-    pincode: "",
   });
 
   // Location Data
@@ -139,52 +152,7 @@ export default function AdminDashboard() {
     fetchStates();
   }, []);
 
-  const handlePincodeLookup = async (pincode, isEdit = false) => {
-    if (pincode.length === 6) {
-      setPincodeLoading(true);
-      try {
-        const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
-        const data = await response.json();
 
-        if (data[0].Status === "Success") {
-          const postOffices = data[0].PostOffice;
-          const apiState = postOffices[0].State;
-          const apiDistrict = postOffices[0].District;
-
-          setMandalSuggestions(postOffices.map(po => po.Name));
-
-          // Find and set State
-          const foundState = states.find(s => s.name.toUpperCase() === apiState.toUpperCase());
-          if (foundState) {
-            if (isEdit) {
-              setEditAgentForm(prev => ({ ...prev, state_id: foundState.id, state: foundState.name }));
-            } else {
-              setAgentForm(prev => ({ ...prev, state_id: foundState.id, state: foundState.name }));
-            }
-
-            // Fetch and set District
-            const distResponse = await fetch(`${API_URL}/auth/districts/${foundState.id}`);
-            if (distResponse.ok) {
-              const distData = await distResponse.json();
-              setDistricts(distData);
-              const foundDist = distData.find(d => d.name.toUpperCase() === apiDistrict.toUpperCase());
-              if (foundDist) {
-                if (isEdit) {
-                  setEditAgentForm(prev => ({ ...prev, district_id: foundDist.id, district: foundDist.name }));
-                } else {
-                  setAgentForm(prev => ({ ...prev, district_id: foundDist.id, district: foundDist.name }));
-                }
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Pincode API Error:", err);
-      } finally {
-        setPincodeLoading(false);
-      }
-    }
-  };
 
   const fetchStates = async () => {
     try {
@@ -273,6 +241,21 @@ export default function AdminDashboard() {
     }
   }, [activeTab, filterAgent, filterStatus, searchQuery, leadsCurrentPage]);
 
+  // Handle server-side pagination for Agents Table
+  useEffect(() => {
+    setAgentsCurrentPage(1);
+  }, [agentFilters]);
+
+  useEffect(() => {
+    if (activeTab === "agents") {
+      const timer = setTimeout(() => {
+        fetchPaginatedAgents(agentsCurrentPage);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, agentFilters, agentsCurrentPage]);
+
+
   const fetchDashboardData = async () => {
     await Promise.all([fetchLeads(), fetchAgents(), fetchInquiries()]);
   };
@@ -318,6 +301,34 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchPaginatedAgents = async (page = 1) => {
+    try {
+      const token = localStorage.getItem("token");
+      const queryParams = new URLSearchParams({
+        page,
+        limit: 10,
+      });
+      if (agentFilters.search) queryParams.append("search", agentFilters.search);
+      if (agentFilters.state_id) queryParams.append("state_id", agentFilters.state_id);
+      if (agentFilters.district_id) queryParams.append("district_id", agentFilters.district_id);
+      if (agentFilters.mandal) queryParams.append("mandal", agentFilters.mandal);
+      if (agentFilters.village) queryParams.append("village", agentFilters.village);
+
+      const response = await fetch(`${API_URL}/auth/agents?${queryParams.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setPaginatedAgents(data.agents || []);
+        setAgentsTotalPages(data.totalPages || 1);
+        setAgentsCurrentPage(data.currentPage || 1);
+      }
+    } catch (error) {
+      console.error("Error fetching paginated agents:", error);
+    }
+  };
+
+
   const fetchAgents = async (filters = agentFilters) => {
     try {
       const token = localStorage.getItem("token");
@@ -360,7 +371,9 @@ export default function AdminDashboard() {
       });
 
       if (response.ok) {
-        fetchAgents(agentFilters); // Refresh list with current filters
+        toast.success(`Agent status changed successfully`);
+        fetchAgents(); // Refresh full list
+        fetchPaginatedAgents(agentsCurrentPage); // Refresh paginated view
       }
     } catch (error) {
       console.error("Error toggling agent status:", error);
@@ -403,18 +416,20 @@ export default function AdminDashboard() {
       });
 
       if (response.ok) {
-        fetchAgents(agentFilters);
+        toast.success("Agent status updated successfully!");
+        fetchAgents(); // Refresh full list
+        fetchPaginatedAgents(agentsCurrentPage); // Refresh paginated view
       } else {
-        alert("Failed to update agent status");
+        toast.error("Failed to update agent status");
       }
     } catch (error) {
-      alert("Network error");
+      toast.error("Network error");
     }
   };
 
   const createAgent = async () => {
     if (!agentForm.fullName || !agentForm.email || !agentForm.phone || !agentForm.password) {
-      alert("Please fill all required fields");
+      toast.error("Please fill all required fields");
       return;
     }
 
@@ -429,7 +444,7 @@ export default function AdminDashboard() {
       formData.append("status", "ACTIVE");
       if (agentForm.state_id) formData.append("state_id", agentForm.state_id);
       if (agentForm.district_id) formData.append("district_id", agentForm.district_id);
-      if (agentForm.mandal) formData.append("mandal", agentForm.mandal);
+      if (agentForm.mandal_id) formData.append("mandal_id", agentForm.mandal_id);
       if (agentForm.village) formData.append("village", agentForm.village);
       if (agentForm.aadharNumber) formData.append("aadharNumber", agentForm.aadharNumber);
       if (agentForm.alternatePhone) formData.append("alternatePhone", agentForm.alternatePhone);
@@ -442,7 +457,7 @@ export default function AdminDashboard() {
       });
 
       if (response.ok) {
-        alert("Agent created successfully!");
+        toast.success("Agent created successfully!");
         setShowCreateAgent(false);
         setAgentForm({
           fullName: "",
@@ -451,16 +466,17 @@ export default function AdminDashboard() {
           password: "",
           state: "",
           district: "",
-          mandal: "",
+          mandal_id: "",
           village: "",
         });
-        fetchAgents();
+        fetchAgents(); // Refresh full list
+        fetchPaginatedAgents(1); // Reset table to page 1
       } else {
         const data = await response.json();
-        alert(data.message || "Failed to create agent");
+        toast.error(data.message || "Failed to create agent");
       }
     } catch (error) {
-      alert("Network error");
+      toast.error("Network error");
     } finally {
       setLoading(false);
     }
@@ -483,7 +499,7 @@ export default function AdminDashboard() {
       state: agent.state || "",
       district_id: agent.district_id || "",
       district: agent.district || "",
-      mandal: agent.mandal || "",
+      mandal_id: agent.mandal_id || "",
       village: agent.village || "",
       aadharNumber: agent.aadhar_number || "",
       alternatePhone: agent.alternate_phone || "",
@@ -493,14 +509,14 @@ export default function AdminDashboard() {
 
     if (agent.state_id) fetchDistricts(agent.state_id);
     if (agent.state_id && agent.district_id) fetchMandals(agent.state_id, agent.district_id);
-    if (agent.state_id && agent.district_id && agent.mandal) fetchVillages(agent.state_id, agent.district_id, agent.mandal);
+    if (agent.state_id && agent.district_id && agent.mandal_id) fetchVillages(agent.state_id, agent.district_id, agent.mandal_id);
 
     setShowEditAgent(true);
   };
 
   const updateAgent = async () => {
     if (!editAgentForm.fullName || !editAgentForm.email || !editAgentForm.phone) {
-      alert("Please fill all required fields");
+      toast.error("Please fill all required fields");
       return;
     }
 
@@ -513,7 +529,7 @@ export default function AdminDashboard() {
       formData.append("phone", editAgentForm.phone);
       if (editAgentForm.state_id) formData.append("state_id", editAgentForm.state_id);
       if (editAgentForm.district_id) formData.append("district_id", editAgentForm.district_id);
-      if (editAgentForm.mandal) formData.append("mandal", editAgentForm.mandal);
+      if (editAgentForm.mandal_id) formData.append("mandal_id", editAgentForm.mandal_id);
       if (editAgentForm.village) formData.append("village", editAgentForm.village);
       if (editAgentForm.aadharNumber) formData.append("aadharNumber", editAgentForm.aadharNumber);
       if (editAgentForm.alternatePhone) formData.append("alternatePhone", editAgentForm.alternatePhone);
@@ -528,15 +544,16 @@ export default function AdminDashboard() {
       });
 
       if (response.ok) {
-        alert("Agent updated successfully!");
+        toast.success("Agent updated successfully!");
         setShowEditAgent(false);
-        fetchAgents();
+        fetchAgents(); // Refresh full list
+        fetchPaginatedAgents(agentsCurrentPage); // Refresh paginated view
       } else {
         const data = await response.json();
-        alert(data.message || "Failed to update agent");
+        toast.error(data.message || "Failed to update agent");
       }
     } catch (error) {
-      alert("Network error");
+      toast.error("Network error");
     } finally {
       setLoading(false);
     }
@@ -605,17 +622,17 @@ export default function AdminDashboard() {
           setEditLeadForm((f) => ({ ...f, latitude: pos.coords.latitude.toString(), longitude: pos.coords.longitude.toString() }));
           setEditLeadGpsLoading(false);
         },
-        () => { alert("Unable to capture GPS."); setEditLeadGpsLoading(false); }
+        () => { toast.error("Unable to capture GPS."); setEditLeadGpsLoading(false); }
       );
     } else {
-      alert("GPS not supported.");
+      toast.error("GPS not supported.");
       setEditLeadGpsLoading(false);
     }
   };
 
   const updateLead = async () => {
     if (!editLeadForm.clientName || !editLeadForm.clientPhone || !editLeadForm.serviceType) {
-      alert("Please fill required fields: Client Name, Phone, Service Type");
+      toast.error("Please fill required fields: Client Name, Phone, Service Type");
       return;
     }
 
@@ -646,16 +663,16 @@ export default function AdminDashboard() {
       });
 
       if (response.ok) {
-        alert("Lead updated successfully!");
+        toast.success("Lead updated successfully!");
         setShowEditLead(false);
         fetchLeads(); // Update overall counts
         fetchPaginatedLeads(leadsCurrentPage); // Update current table view
       } else {
         const data = await response.json();
-        alert(data.message || "Failed to update lead");
+        toast.error(data.message || "Failed to update lead");
       }
     } catch (error) {
-      alert("Network error");
+      toast.error("Network error");
     } finally {
       setLoading(false);
     }
@@ -679,12 +696,13 @@ export default function AdminDashboard() {
       });
 
       if (response.ok) {
+        toast.success("Inquiry assigned successfully!");
         fetchInquiries();
       } else {
-        alert("Failed to assign inquiry");
+        toast.error("Failed to assign inquiry");
       }
     } catch (error) {
-      alert("Network error");
+      toast.error("Network error");
     }
   };
 
@@ -697,14 +715,14 @@ export default function AdminDashboard() {
       });
 
       if (response.ok) {
-        alert("Inquiry converted to lead successfully!");
+        toast.success("Inquiry converted to lead successfully!");
         fetchInquiries();
         fetchLeads();
       } else {
-        alert("Failed to convert inquiry");
+        toast.error("Failed to convert inquiry");
       }
     } catch (error) {
-      alert("Network error");
+      toast.error("Network error");
     }
   };
 
@@ -726,8 +744,102 @@ export default function AdminDashboard() {
 
   const activeAgents = agents.filter((a) => a.status === "ACTIVE");
 
+  // Export Handlers
+  const handleExportLeadsExcel = () => {
+    const filteredLeads = leads.filter(lead => {
+      const matchesAgent = filterAgent === "all" || lead.agent_id == filterAgent;
+      const matchesStatus = filterStatus === "all" || lead.status === filterStatus;
+      const matchesSearch = !searchQuery ||
+        lead.client_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lead.client_phone?.includes(searchQuery);
+      return matchesAgent && matchesStatus && matchesSearch;
+    });
+
+    const exportData = filteredLeads.map(l => ({
+      ID: l.id,
+      Date: new Date(l.created_at).toLocaleDateString(),
+      Client: l.client_name,
+      Phone: l.client_phone,
+      Email: l.client_email || 'N/A',
+      Agent: agents.find(a => a.id === l.agent_id)?.full_name || 'Unknown',
+      Service: l.service_type,
+      Status: l.status,
+      Payment: l.payment_status,
+      Total: l.total_amount || 0,
+      Paid: l.paid_amount || 0,
+      Location: l.exact_location || 'N/A'
+    }));
+
+    exportToExcel(exportData, `Leads_Export_${new Date().toISOString().split('T')[0]}`);
+  };
+
+  const handleExportLeadsPDF = () => {
+    const filteredLeads = leads.filter(lead => {
+      const matchesAgent = filterAgent === "all" || lead.agent_id == filterAgent;
+      const matchesStatus = filterStatus === "all" || lead.status === filterStatus;
+      const matchesSearch = !searchQuery ||
+        lead.client_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lead.client_phone?.includes(searchQuery);
+      return matchesAgent && matchesStatus && matchesSearch;
+    });
+
+    const headers = ['ID', 'Date', 'Client', 'Phone', 'Agent', 'Service', 'Status', 'Payment', 'Total', 'Paid'];
+    const data = filteredLeads.map(l => [
+      l.id,
+      new Date(l.created_at).toLocaleDateString(),
+      l.client_name,
+      l.client_phone,
+      agents.find(a => a.id === l.agent_id)?.full_name || 'Unknown',
+      l.service_type,
+      l.status,
+      l.payment_status,
+      `₹${l.total_amount || 0}`,
+      `₹${l.paid_amount || 0}`
+    ]);
+
+    exportToPDF(headers, data, `Leads_Export_${new Date().toISOString().split('T')[0]}`, 'Leads Report');
+  };
+
+  const handleExportAgentsExcel = () => {
+    const exportData = agents.map(a => ({
+      ID: a.id,
+      Name: a.full_name,
+      Email: a.email,
+      Phone: a.phone,
+      State: a.state?.name || 'N/A',
+      District: a.district?.name || 'N/A',
+      Mandal: a.mandal || 'N/A',
+      Village: a.village || 'N/A',
+      Leads: leads.filter(l => l.agent_id == a.id).length,
+      Won: leads.filter(l => l.agent_id == a.id && l.status === 'WON').length,
+      Revenue: leads.filter(l => l.agent_id == a.id).reduce((sum, l) => sum + (parseFloat(l.paid_amount) || 0), 0),
+      Status: a.status
+    }));
+
+    exportToExcel(exportData, `Agents_Export_${new Date().toISOString().split('T')[0]}`);
+  };
+
+  const handleExportAgentsPDF = () => {
+    const headers = ['Name', 'Phone', 'Location', 'Leads', 'Won', 'Revenue', 'Status'];
+    const data = agents.map(a => [
+      a.full_name,
+      a.phone,
+      `${a.district?.name || 'N/A'}, ${a.state?.name || 'N/A'}`,
+      leads.filter(l => l.agent_id == a.id).length,
+      leads.filter(l => l.agent_id == a.id && l.status === 'WON').length,
+      `₹${leads.filter(l => l.agent_id == a.id).reduce((sum, l) => sum + (parseFloat(l.paid_amount) || 0), 0).toLocaleString()}`,
+      a.status
+    ]);
+
+    exportToPDF(headers, data, `Agents_Export_${new Date().toISOString().split('T')[0]}`, 'Agents Performance Report');
+  };
+
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
+      <SEO 
+        title="Admin Dashboard" 
+        description="Admin management console to oversee leads, monitor registered agent actions, assign contact requests, and generate performance reports." 
+      />
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -736,13 +848,25 @@ export default function AdminDashboard() {
       />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <DashboardHeader
-          title={activeTab === 'dashboard' ? 'Overview' : activeTab === 'leads' ? 'Lead Management' : activeTab === 'agents' ? 'Agent Management' : activeTab === 'inquiries' ? 'Contact Inquiries' : 'My Profile'}
+       <DashboardHeader
+          title={
+            activeTab === "dashboard"
+              ? "Overview"
+              : activeTab === "leads"
+              ? "Lead Management"
+              : activeTab === "agents"
+              ? "Agent Management"
+              : activeTab === "managers"
+              ? "Manager Management"
+              : activeTab === "inquiries"
+              ? "Contact Inquiries"
+              : "My Profile"
+          }
           onMenuClick={() => setIsSidebarOpen(true)}
           setActiveTab={setActiveTab}
         />
 
-        <main className="flex-1 overflow-y-auto p-4 pb-24 md:p-6 custom-scrollbar">
+        <main className="flex-1 overflow-y-auto p-2 pb-20 md:p-4 custom-scrollbar">
           <div className="relative">
 
             {/* DASHBOARD TAB */}
@@ -762,11 +886,15 @@ export default function AdminDashboard() {
               <Profile />
             )}
 
+            {activeTab === "managers" && (
+                <ManageManagers />
+            )}
+
             {/* LEADS TAB */}
             {activeTab === "leads" && (
               <div className="space-y-6">
                 {/* Module Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                   <StatCard icon={<FaClipboardList />} label="Total Leads" value={leads.length} color="bg-blue-500" />
                   <StatCard icon={<FaCheckCircle />} label="Won Leads" value={leads.filter(l => l.status === 'WON').length} color="bg-green-500" />
                   <StatCard icon={<FaTimesCircle />} label="Lost Leads" value={leads.filter(l => l.status === 'LOST').length} color="bg-red-500" />
@@ -815,6 +943,24 @@ export default function AdminDashboard() {
                       className="flex-1 p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm"
                     />
                   </div>
+
+                  {/* Export Buttons */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleExportLeadsExcel}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold hover:bg-green-600 hover:text-white transition-all shadow-sm"
+                      title="Export to Excel"
+                    >
+                      <FaFileExcel /> Export
+                    </button>
+                    <button
+                      onClick={handleExportLeadsPDF}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-lg text-sm font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                      title="Export to PDF"
+                    >
+                      <FaFilePdf /> PDF
+                    </button>
+                  </div>
                 </div>
 
                 {/* Leads Table */}
@@ -843,23 +989,23 @@ export default function AdminDashboard() {
                         ) : (
                           paginatedLeads.map((lead, index) => (
                             <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-6 py-4 text-sm font-bold text-gray-400">
+                              <td className="px-4 py-2 text-sm font-bold text-gray-400">
                                 #{(leadsCurrentPage - 1) * 10 + index + 1}
                               </td>
-                              <td className="px-6 py-4">
+                              <td className="px-4 py-2">
                                 <div className="font-bold text-gray-900">{lead.client_name}</div>
                                 <div className="text-sm text-gray-500">{lead.client_phone}</div>
                               </td>
-                              <td className="px-6 py-4 text-sm">
+                              <td className="px-4 py-2 text-sm">
                                 {agents.find((a) => a.id === lead.agent_id)?.full_name || "Unknown"}
                               </td>
                               <td className="px-6 py-4 text-sm">{lead.service_type}</td>
-                              <td className="px-6 py-4">
+                              <td className="px-4 py-2">
                                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(lead.status)}`}>
                                   {lead.status}
                                 </span>
                               </td>
-                              <td className="px-6 py-4">
+                              <td className="px-4 py-2">
                                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(lead.payment_status)}`}>
                                   {lead.payment_status}
                                 </span>
@@ -869,10 +1015,10 @@ export default function AdminDashboard() {
                                   </div>
                                 )}
                               </td>
-                              <td className="px-6 py-4 text-sm text-gray-500">
+                              <td className="px-4 py-2 text-sm text-gray-500">
                                 {new Date(lead.created_at).toLocaleDateString()}
                               </td>
-                              <td className="px-6 py-4">
+                              <td className="px-4 py-2">
                                 <div className="flex gap-2">
                                   <button
                                     onClick={() => handleViewLead(lead)}
@@ -928,7 +1074,7 @@ export default function AdminDashboard() {
             {activeTab === "agents" && (
               <div className="space-y-6">
                 {/* Module Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                   <StatCard icon={<FaUsers />} label="Total Agents" value={stats.totalAgents} color="bg-blue-500" />
                   <StatCard icon={<FaUserCheck />} label="Active Agents" value={agents.filter(a => a.status === 'ACTIVE').length} color="bg-green-500" />
                   <StatCard icon={<FaClock />} label="Pending Approvals" value={stats.pendingAgents} color="bg-yellow-500" />
@@ -938,104 +1084,121 @@ export default function AdminDashboard() {
                 {/* Create Button */}
                 <button
                   onClick={() => setShowCreateAgent(true)}
-                  className="px-6 py-3 bg-green-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-green-700 transition-all shadow-lg"
+                  className="px-6 py-3 bg-green-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-green-700 transition-all shadow-lg w-fit"
                 >
                   <FaUserPlus /> Create New Agent
                 </button>
 
-                {/* Filters */}
-                <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
-                  <div className="flex justify-between items-center mb-6">
-                    <h4 className="text-lg font-black text-gray-900">Filter Agents</h4>
-                    <div className="relative group w-72">
-                      <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors" />
-                      <input
-                        type="text"
-                        placeholder="Search agent name..."
-                        value={agentFilters.search}
-                        onChange={(e) => {
-                          const newFilters = { ...agentFilters, search: e.target.value };
-                          setAgentFilters(newFilters);
-                          fetchAgents(newFilters);
-                        }}
-                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-medium outline-none focus:border-orange-500 focus:bg-white transition-all shadow-sm"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                {/* Filter Bar */}
+                <div className="flex flex-wrap gap-4 bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-gray-100 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <FaFilter className="text-orange-500" />
                     <select
                       value={agentFilters.state_id}
                       onChange={(e) => {
                         const id = e.target.value;
                         const newFilters = { ...agentFilters, state_id: id, district_id: "", mandal: "", village: "" };
                         setAgentFilters(newFilters);
-                        fetchAgents(newFilters);
                         if (id) fetchDistricts(id);
                         else { setDistricts([]); setMandals([]); setVillages([]); }
                       }}
-                      className="w-full py-2.5 px-4 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:border-orange-500 shadow-sm appearance-none cursor-pointer"
+                      className="p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 outline-none focus:border-orange-500 cursor-pointer"
                     >
                       <option value="">All States</option>
                       {states.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
-                    <select
-                      value={agentFilters.district_id}
+                  </div>
+
+                  <select
+                    value={agentFilters.district_id}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      const newFilters = { ...agentFilters, district_id: id, mandal: "", village: "" };
+                      setAgentFilters(newFilters);
+                      if (id) fetchMandals(agentFilters.state_id, id);
+                      else { setMandals([]); setVillages([]); }
+                    }}
+                    disabled={!agentFilters.state_id}
+                    className="p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 outline-none focus:border-orange-500 cursor-pointer disabled:opacity-50"
+                  >
+                    <option value="">All Districts</option>
+                    {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+
+                  <select
+                    value={agentFilters.mandal}
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      const newFilters = { ...agentFilters, mandal: name, village: "" };
+                      setAgentFilters(newFilters);
+                      if (name) fetchVillages(agentFilters.state_id, agentFilters.district_id, name);
+                      else setVillages([]);
+                    }}
+                    disabled={!agentFilters.district_id}
+                    className="p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 outline-none focus:border-orange-500 cursor-pointer disabled:opacity-50"
+                  >
+                    <option value="">All Mandals</option>
+                    {mandals.map((m, i) => <option key={i} value={m.id}>{m.mandal}</option>)}
+                  </select>
+
+                  <select
+                    value={agentFilters.village}
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      const newFilters = { ...agentFilters, village: name };
+                      setAgentFilters(newFilters);
+                    }}
+                    disabled={!agentFilters.mandal}
+                    className="p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 outline-none focus:border-orange-500 cursor-pointer disabled:opacity-50"
+                  >
+                    <option value="">All Villages</option>
+                    {villages.map((v, i) => <option key={i} value={v.village}>{v.village}</option>)}
+                  </select>
+
+                  <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                    <FaSearch className="text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search agent name..."
+                      value={agentFilters.search}
                       onChange={(e) => {
-                        const id = e.target.value;
-                        const newFilters = { ...agentFilters, district_id: id, mandal: "", village: "" };
+                        const newFilters = { ...agentFilters, search: e.target.value };
                         setAgentFilters(newFilters);
-                        fetchAgents(newFilters);
-                        if (id) fetchMandals(agentFilters.state_id, id);
-                        else { setMandals([]); setVillages([]); }
                       }}
-                      disabled={!agentFilters.state_id}
-                      className="w-full py-2.5 px-4 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:border-orange-500 shadow-sm appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <option value="">All Districts</option>
-                      {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
-                    <select
-                      value={agentFilters.mandal}
-                      onChange={(e) => {
-                        const name = e.target.value;
-                        const newFilters = { ...agentFilters, mandal: name, village: "" };
-                        setAgentFilters(newFilters);
-                        fetchAgents(newFilters);
-                        if (name) fetchVillages(agentFilters.state_id, agentFilters.district_id, name);
-                        else setVillages([]);
-                      }}
-                      disabled={!agentFilters.district_id}
-                      className="w-full py-2.5 px-4 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:border-orange-500 shadow-sm appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <option value="">All Mandals</option>
-                      {mandals.map((m, i) => <option key={i} value={m.mandal}>{m.mandal}</option>)}
-                    </select>
-                    <select
-                      value={agentFilters.village}
-                      onChange={(e) => {
-                        const name = e.target.value;
-                        const newFilters = { ...agentFilters, village: name };
-                        setAgentFilters(newFilters);
-                        fetchAgents(newFilters);
-                      }}
-                      disabled={!agentFilters.mandal}
-                      className="w-full py-2.5 px-4 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:border-orange-500 shadow-sm appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <option value="">All Villages</option>
-                      {villages.map((v, i) => <option key={i} value={v.village}>{v.village}</option>)}
-                    </select>
+                      className="flex-1 p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-500"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
                     <button
                       onClick={() => {
                         const cleared = { search: "", state_id: "", district_id: "", mandal: "", village: "" };
                         setAgentFilters(cleared);
-                        fetchAgents(cleared);
                         setDistricts([]);
                         setMandals([]);
                         setVillages([]);
                       }}
-                      className="w-full py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-all flex items-center justify-center gap-2 shadow-sm"
+                      className="p-2 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                      title="Clear Filters"
                     >
-                      <FaTimes /> Clear Filters
+                      <FaTimes />
+                    </button>
+
+                    <div className="h-8 w-px bg-gray-200 mx-1"></div>
+
+                    <button
+                      onClick={handleExportAgentsExcel}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold hover:bg-green-600 hover:text-white transition-all shadow-sm"
+                      title="Export Agents to Excel"
+                    >
+                      <FaFileExcel /> Export
+                    </button>
+                    <button
+                      onClick={handleExportAgentsPDF}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-lg text-sm font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                      title="Export Agents to PDF"
+                    >
+                      <FaFilePdf /> PDF
                     </button>
                   </div>
                 </div>
@@ -1045,18 +1208,25 @@ export default function AdminDashboard() {
                     <table className="w-full">
                       <thead>
                         <tr className="bg-gray-50/50 text-left border-b border-gray-100">
-                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Agent</th>
-                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact</th>
-                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Location</th>
-                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Performance</th>
-                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
+                          <th className="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Agent</th>
+                          <th className="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact</th>
+                          <th className="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Location</th>
+                          <th className="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Performance</th>
+                          <th className="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                          <th className="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {agents.map((agent) => (
+                        {paginatedAgents.length === 0 ? (
+                          <tr>
+                            <td colSpan="6" className="p-8 text-center text-gray-500 font-bold text-sm">
+                              No agents found.
+                            </td>
+                          </tr>
+                        ) : (
+                          paginatedAgents.map((agent) => (
                           <tr key={agent.id} className="hover:bg-gray-50/30 transition-colors group">
-                            <td className="p-5 cursor-pointer" onClick={() => handleViewAgentLeads(agent)}>
+                            <td className="p-3 cursor-pointer" onClick={() => handleViewAgentLeads(agent)}>
                               <div className="flex items-center gap-3">
                                 <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-600 font-bold overflow-hidden border-2 border-white shadow-sm transition-transform group-hover:scale-105">
                                   {agent.profile_photo ? (
@@ -1069,21 +1239,21 @@ export default function AdminDashboard() {
                                 </div>
                               </div>
                             </td>
-                            <td className="p-5">
+                            <td className="p-3">
                               <div className="flex items-center gap-2 text-sm font-bold text-gray-700">
                                 <FaPhone className="text-orange-500 text-xs" /> {agent.phone}
                               </div>
                             </td>
-                            <td className="p-5">
+                            <td className="p-3">
                               <div className="flex items-start gap-1">
                                 <FaMapMarkerAlt className="text-orange-500 text-xs mt-1" />
                                 <div>
-                                  <div className="text-xs font-black text-gray-900">{agent.mandal || 'N/A'}, {agent.village || 'N/A'}</div>
+                                  <div className="text-xs font-black text-gray-900">{agent.mandal?.name || agent.mandal || 'N/A'}, {agent.village || 'N/A'}</div>
                                   <div className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{agent.district?.name}, {agent.state?.name}</div>
                                 </div>
                               </div>
                             </td>
-                            <td className="p-5">
+                            <td className="p-3">
                               <div className="flex items-center gap-4">
                                 <div>
                                   <div className="text-[10px] text-gray-400 font-bold uppercase">Leads</div>
@@ -1101,14 +1271,14 @@ export default function AdminDashboard() {
                                 </div>
                               </div>
                             </td>
-                            <td className="p-5">
+                            <td className="p-3">
                               <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${agent.status === "ACTIVE" ? "bg-green-100 text-green-600" :
                                 agent.status === "PENDING" ? "bg-yellow-100 text-yellow-600" : "bg-red-100 text-red-600"
                                 }`}>
                                 {agent.status}
                               </span>
                             </td>
-                            <td className="p-5 text-right">
+                            <td className="p-3 text-right">
                               <div className="flex justify-end gap-2">
                                 <button onClick={() => { setViewAgent(agent); setShowViewAgent(true); }} className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm" title="View Details"><FaEye size={14} /></button>
                                 <button onClick={() => handleEditAgent(agent)} className="p-2.5 bg-orange-50 text-orange-600 rounded-xl hover:bg-orange-600 hover:text-white transition-all shadow-sm" title="Edit Agent"><FaEdit size={14} /></button>
@@ -1144,9 +1314,34 @@ export default function AdminDashboard() {
                               </div>
                             </td>
                           </tr>
-                        ))}
+                        )))}
                       </tbody>
                     </table>
+
+                    {/* Pagination Controls */}
+                    {agentsTotalPages > 1 && (
+                      <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-white">
+                        <span className="text-sm text-gray-500 font-bold">
+                          Page {agentsCurrentPage} of {agentsTotalPages}
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            disabled={agentsCurrentPage === 1}
+                            onClick={() => setAgentsCurrentPage(p => Math.max(1, p - 1))}
+                            className="px-4 py-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed font-bold"
+                          >
+                            Previous
+                          </button>
+                          <button
+                            disabled={agentsCurrentPage === agentsTotalPages}
+                            onClick={() => setAgentsCurrentPage(p => Math.min(agentsTotalPages, p + 1))}
+                            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed font-bold shadow-sm"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1156,7 +1351,7 @@ export default function AdminDashboard() {
             {activeTab === "inquiries" && (
               <div className="space-y-6">
                 {/* Module Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                   <StatCard icon={<FaEnvelope />} label="Total Inquiries" value={inquiries.length} color="bg-blue-500" />
                   <StatCard icon={<FaEnvelopeOpenText />} label="New Inquiries" value={stats.newInquiries} color="bg-purple-500" />
                   <StatCard icon={<FaCheckCircle />} label="Converted" value={inquiries.filter(i => i.status === 'CONVERTED').length} color="bg-green-500" />
@@ -1167,46 +1362,46 @@ export default function AdminDashboard() {
                     <table className="w-full">
                       <thead>
                         <tr className="bg-gray-50/50 text-left border-b border-gray-100">
-                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">ID</th>
-                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact Details</th>
-                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Service</th>
-                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Location</th>
-                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
-                          <th className="p-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Assignment / Actions</th>
+                          <th className="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">ID</th>
+                          <th className="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact Details</th>
+                          <th className="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Service</th>
+                          <th className="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Location</th>
+                          <th className="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                          <th className="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                          <th className="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Assignment / Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {inquiries.map((inquiry) => (
                           <tr key={inquiry.id} className="hover:bg-gray-50/30 transition-colors group">
-                            <td className="p-5 text-sm font-black text-gray-400">#{inquiry.id}</td>
-                            <td className="p-5">
+                            <td className="p-3 text-sm font-black text-gray-400">#{inquiry.id}</td>
+                            <td className="p-3">
                               <div className="font-black text-gray-900">{inquiry.name}</div>
                               <div className="flex items-center gap-1 text-[10px] text-orange-600 font-bold">
                                 <FaPhone size={8} /> {inquiry.phone}
                               </div>
                             </td>
-                            <td className="p-5">
+                            <td className="p-3">
                               <div className="text-sm font-black text-gray-900">{inquiry.service_required}</div>
                               <div className="text-[10px] text-gray-400 italic">"{inquiry.message?.substring(0, 30)}..."</div>
                             </td>
-                            <td className="p-5">
+                            <td className="p-3">
                               <div className="text-xs font-bold text-gray-700">{inquiry.location || 'Madanapalli'}</div>
                             </td>
-                            <td className="p-5">
+                            <td className="p-3">
                               <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${inquiry.status === "NEW" ? "bg-blue-100 text-blue-600" :
                                 inquiry.status === "CONTACTED" ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-600"
                                 }`}>
                                 {inquiry.status}
                               </span>
                             </td>
-                            <td className="p-5">
+                            <td className="p-3">
                               <div className="text-[10px] text-gray-500 font-bold uppercase">
                                 {new Date(inquiry.created_at).toLocaleDateString()}<br />
                                 {new Date(inquiry.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </div>
                             </td>
-                            <td className="p-5">
+                            <td className="p-3">
                               <div className="flex items-center gap-2">
                                 {inquiry.assigned_agent_id ? (
                                   <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-[10px] font-black">
@@ -1218,7 +1413,7 @@ export default function AdminDashboard() {
                                     className="bg-orange-50 text-orange-700 border-none rounded-lg px-3 py-1.5 text-[10px] font-black outline-none appearance-none cursor-pointer hover:bg-orange-100 transition-all"
                                   >
                                     <option value="">Assign Agent...</option>
-                                    {agents.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
+                                    {activeAgents.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
                                   </select>
                                 )}
                                 <button onClick={() => handleViewInquiry(inquiry)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all">
@@ -1235,1071 +1430,1068 @@ export default function AdminDashboard() {
               </div>
             )}
           </div>
-        </main>
+        </main >
 
         {/* MODALS SECTION - Higher Z-Index to cover Sidebar/Header */}
-        <div className="relative z-[100]">
+        < div className="relative z-[100]" >
 
           {/* Agent Leads Modal */}
-          {showAgentLeads && selectedAgent && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-[2rem] p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto"
-              >
-                <div className="flex justify-between items-center mb-6">
-                  <div>
-                    <h3 className="text-2xl font-black text-gray-900">
-                      {selectedAgent.full_name}'s Leads
-                    </h3>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {leads.filter((l) => l.agent_id == selectedAgent.id).length} total leads
-                    </p>
-                  </div>
-                  <button onClick={() => setShowAgentLeads(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                    <FaTimesCircle className="text-2xl text-gray-400" />
-                  </button>
-                </div>
-
-                {/* Agent summary */}
-                <div className="grid grid-cols-3 gap-6 mb-8">
-                  <div className="bg-blue-50/50 p-6 rounded-[2rem] text-center border border-blue-100 shadow-sm shadow-blue-50">
-                    <p className="text-3xl font-black text-blue-600 mb-1">{leads.filter((l) => l.agent_id == selectedAgent.id).length}</p>
-                    <p className="text-[10px] text-blue-400 font-black uppercase tracking-widest">Total Leads</p>
-                  </div>
-                  <div className="bg-green-50/50 p-6 rounded-[2rem] text-center border border-green-100 shadow-sm shadow-green-50">
-                    <p className="text-3xl font-black text-green-600 mb-1">{leads.filter((l) => l.agent_id == selectedAgent.id && l.status === "WON").length}</p>
-                    <p className="text-[10px] text-green-400 font-black uppercase tracking-widest">Won Deals</p>
-                  </div>
-                  <div className="bg-orange-50/50 p-6 rounded-[2rem] text-center border border-orange-100 shadow-sm shadow-orange-50">
-                    <p className="text-3xl font-black text-orange-600 mb-1">
-                      ₹{leads.filter((l) => l.agent_id == selectedAgent.id).reduce((sum, l) => sum + (parseFloat(l.paid_amount) || 0), 0).toFixed(0)}
-                    </p>
-                    <p className="text-[10px] text-orange-400 font-black uppercase tracking-widest">Total Revenue</p>
-                  </div>
-                </div>
-
-                {/* Leads table */}
-                {leads.filter((l) => l.agent_id == selectedAgent.id).length === 0 ? (
-                  <div className="text-center py-12 bg-gray-50 rounded-2xl">
-                    <p className="text-gray-500 font-bold">No leads yet for this agent</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto rounded-2xl border border-gray-100">
-                    <table className="w-full">
-                      <thead className="bg-orange-50/50">
-                        <tr className="text-left border-b border-orange-100">
-                          <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">ID</th>
-                          <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Client</th>
-                          <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Service</th>
-                          <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Status</th>
-                          <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Payment</th>
-                          <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Amount</th>
-                          <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Date</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {leads
-                          .filter((l) => l.agent_id == selectedAgent.id)
-                          .map((lead) => (
-                            <tr key={lead.id} className="hover:bg-gray-50">
-                              <td className="px-4 py-3 text-sm font-medium text-gray-500">#{lead.id}</td>
-                              <td className="px-4 py-3">
-                                <div className="font-bold text-gray-900 text-sm">{lead.client_name}</div>
-                                <div className="text-xs text-gray-500">{lead.client_phone}</div>
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-700">{lead.service_type}</td>
-                              <td className="px-4 py-3">
-                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(lead.status)}`}>
-                                  {lead.status}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3">
-                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(lead.payment_status)}`}>
-                                  {lead.payment_status}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-sm">
-                                {lead.total_amount > 0 ? (
-                                  <span className="text-gray-700">₹{lead.paid_amount || 0} / ₹{lead.total_amount}</span>
-                                ) : <span className="text-gray-400">—</span>}
-                              </td>
-                              <td className="px-4 py-3 text-xs text-gray-500">
-                                {new Date(lead.created_at).toLocaleDateString()}
-                              </td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                <button
-                  onClick={() => setShowAgentLeads(false)}
-                  className="w-full py-5 bg-gray-100 text-gray-500 rounded-[2rem] font-black hover:bg-gray-200 transition-all mt-8 uppercase tracking-[0.2em] text-xs shadow-inner"
+          {
+            showAgentLeads && selectedAgent && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-white rounded-[2rem] p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto"
                 >
-                  Close
-                </button>
-              </motion.div>
-            </div>
-          )}
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <h3 className="text-2xl font-black text-gray-900">
+                        {selectedAgent.full_name}'s Leads
+                      </h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {leads.filter((l) => l.agent_id == selectedAgent.id).length} total leads
+                      </p>
+                    </div>
+                    <button onClick={() => setShowAgentLeads(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                      <FaTimesCircle className="text-2xl text-gray-400" />
+                    </button>
+                  </div>
+
+                  {/* Agent summary */}
+                  <div className="grid grid-cols-3 gap-6 mb-8">
+                    <div className="bg-blue-50/50 p-6 rounded-[2rem] text-center border border-blue-100 shadow-sm shadow-blue-50">
+                      <p className="text-3xl font-black text-blue-600 mb-1">{leads.filter((l) => l.agent_id == selectedAgent.id).length}</p>
+                      <p className="text-[10px] text-blue-400 font-black uppercase tracking-widest">Total Leads</p>
+                    </div>
+                    <div className="bg-green-50/50 p-6 rounded-[2rem] text-center border border-green-100 shadow-sm shadow-green-50">
+                      <p className="text-3xl font-black text-green-600 mb-1">{leads.filter((l) => l.agent_id == selectedAgent.id && l.status === "WON").length}</p>
+                      <p className="text-[10px] text-green-400 font-black uppercase tracking-widest">Won Deals</p>
+                    </div>
+                    <div className="bg-orange-50/50 p-6 rounded-[2rem] text-center border border-orange-100 shadow-sm shadow-orange-50">
+                      <p className="text-3xl font-black text-orange-600 mb-1">
+                        ₹{leads.filter((l) => l.agent_id == selectedAgent.id).reduce((sum, l) => sum + (parseFloat(l.paid_amount) || 0), 0).toFixed(0)}
+                      </p>
+                      <p className="text-[10px] text-orange-400 font-black uppercase tracking-widest">Total Revenue</p>
+                    </div>
+                  </div>
+
+                  {/* Leads table */}
+                  {leads.filter((l) => l.agent_id == selectedAgent.id).length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-2xl">
+                      <p className="text-gray-500 font-bold">No leads yet for this agent</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-2xl border border-gray-100">
+                      <table className="w-full">
+                        <thead className="bg-orange-50/50">
+                          <tr className="text-left border-b border-orange-100">
+                            <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">ID</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Client</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Service</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Status</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Payment</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Amount</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-orange-600 uppercase tracking-widest">Date</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {leads
+                            .filter((l) => l.agent_id == selectedAgent.id)
+                            .map((lead) => (
+                              <tr key={lead.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 text-sm font-medium text-gray-500">#{lead.id}</td>
+                                <td className="px-4 py-3">
+                                  <div className="font-bold text-gray-900 text-sm">{lead.client_name}</div>
+                                  <div className="text-xs text-gray-500">{lead.client_phone}</div>
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-700">{lead.service_type}</td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(lead.status)}`}>
+                                    {lead.status}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(lead.payment_status)}`}>
+                                    {lead.payment_status}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-sm">
+                                  {lead.total_amount > 0 ? (
+                                    <span className="text-gray-700">₹{lead.paid_amount || 0} / ₹{lead.total_amount}</span>
+                                  ) : <span className="text-gray-400">—</span>}
+                                </td>
+                                <td className="px-4 py-3 text-xs text-gray-500">
+                                  {new Date(lead.created_at).toLocaleDateString()}
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => setShowAgentLeads(false)}
+                    className="w-full py-5 bg-gray-100 text-gray-500 rounded-[2rem] font-black hover:bg-gray-200 transition-all mt-8 uppercase tracking-[0.2em] text-xs shadow-inner"
+                  >
+                    Close
+                  </button>
+                </motion.div>
+              </div>
+            )
+          }
 
           {/* View Inquiry Modal */}
-          {showViewInquiry && viewInquiry && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-[2.5rem] p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl"
-              >
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-black text-gray-900">Inquiry Details</h3>
-                  <button onClick={() => setShowViewInquiry(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                    <FaTimesCircle className="text-2xl text-gray-400" />
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Header */}
-                  <div className="flex items-center gap-4 bg-orange-50 p-4 rounded-2xl">
-                    <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                      {viewInquiry.name?.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-gray-900">{viewInquiry.name}</h2>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(viewInquiry.status)}`}>
-                        {viewInquiry.status}
-                      </span>
-                    </div>
+          {
+            showViewInquiry && viewInquiry && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-white rounded-[2.5rem] p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl"
+                >
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-2xl font-black text-gray-900">Inquiry Details</h3>
+                    <button onClick={() => setShowViewInquiry(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                      <FaTimesCircle className="text-2xl text-gray-400" />
+                    </button>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-3">
-                    <div className="bg-gray-50 p-4 rounded-xl">
-                      <p className="text-xs text-gray-500 uppercase font-bold mb-1">Phone</p>
-                      <p className="text-gray-900 font-medium">{viewInquiry.phone}</p>
-                    </div>
-                    {viewInquiry.email && (
-                      <div className="bg-gray-50 p-4 rounded-xl">
-                        <p className="text-xs text-gray-500 uppercase font-bold mb-1">Email</p>
-                        <p className="text-gray-900 font-medium">{viewInquiry.email}</p>
+                  <div className="space-y-4">
+                    {/* Header */}
+                    <div className="flex items-center gap-4 bg-orange-50 p-4 rounded-2xl">
+                      <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                        {viewInquiry.name?.charAt(0).toUpperCase()}
                       </div>
-                    )}
-                    {viewInquiry.location && (
-                      <div className="bg-gray-50 p-4 rounded-xl">
-                        <p className="text-xs text-gray-500 uppercase font-bold mb-1">Location</p>
-                        <p className="text-gray-900 font-medium">{viewInquiry.location}</p>
+                      <div>
+                        <h2 className="text-lg font-bold text-gray-900">{viewInquiry.name}</h2>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(viewInquiry.status)}`}>
+                          {viewInquiry.status}
+                        </span>
                       </div>
-                    )}
-                    <div className="bg-gray-50 p-4 rounded-xl">
-                      <p className="text-xs text-gray-500 uppercase font-bold mb-1">Service Required</p>
-                      <p className="text-gray-900 font-medium">{viewInquiry.service_required}</p>
                     </div>
-                    <div className="bg-gray-50 p-4 rounded-xl">
-                      <p className="text-xs text-gray-500 uppercase font-bold mb-1">Message</p>
-                      <p className="text-gray-900">{viewInquiry.message}</p>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-xl">
-                      <p className="text-xs text-gray-500 uppercase font-bold mb-1">Submitted On</p>
-                      <p className="text-gray-900">{new Date(viewInquiry.created_at).toLocaleString()}</p>
-                    </div>
-                    {viewInquiry.assigned_agent_id && (
-                      <div className="bg-blue-50 p-4 rounded-xl">
-                        <p className="text-xs text-blue-500 uppercase font-bold mb-1">Assigned Agent</p>
-                        <p className="text-blue-800 font-bold">{agents.find((a) => a.id === viewInquiry.assigned_agent_id)?.full_name || "Unknown"}</p>
-                        <p className="text-xs text-blue-400 mt-1">Assigned for follow-up only. Use Convert to Lead to add to agent's leads.</p>
-                      </div>
-                    )}
-                  </div>
 
-                  <button
-                    onClick={() => setShowViewInquiry(false)}
-                    className="w-full py-4 bg-gray-200 text-gray-700 rounded-2xl font-bold hover:bg-gray-300 transition-all mt-2"
-                  >
-                    Close
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="bg-gray-50 p-4 rounded-xl">
+                        <p className="text-xs text-gray-500 uppercase font-bold mb-1">Phone</p>
+                        <p className="text-gray-900 font-medium">{viewInquiry.phone}</p>
+                      </div>
+                      {viewInquiry.email && (
+                        <div className="bg-gray-50 p-4 rounded-xl">
+                          <p className="text-xs text-gray-500 uppercase font-bold mb-1">Email</p>
+                          <p className="text-gray-900 font-medium">{viewInquiry.email}</p>
+                        </div>
+                      )}
+                      {viewInquiry.location && (
+                        <div className="bg-gray-50 p-4 rounded-xl">
+                          <p className="text-xs text-gray-500 uppercase font-bold mb-1">Location</p>
+                          <p className="text-gray-900 font-medium">{viewInquiry.location}</p>
+                        </div>
+                      )}
+                      <div className="bg-gray-50 p-4 rounded-xl">
+                        <p className="text-xs text-gray-500 uppercase font-bold mb-1">Service Required</p>
+                        <p className="text-gray-900 font-medium">{viewInquiry.service_required}</p>
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-xl">
+                        <p className="text-xs text-gray-500 uppercase font-bold mb-1">Message</p>
+                        <p className="text-gray-900">{viewInquiry.message}</p>
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-xl">
+                        <p className="text-xs text-gray-500 uppercase font-bold mb-1">Submitted On</p>
+                        <p className="text-gray-900">{new Date(viewInquiry.created_at).toLocaleString()}</p>
+                      </div>
+                      {viewInquiry.assigned_agent_id && (
+                        <div className="bg-blue-50 p-4 rounded-xl">
+                          <p className="text-xs text-blue-500 uppercase font-bold mb-1">Assigned Agent</p>
+                          <p className="text-blue-800 font-bold">{agents.find((a) => a.id === viewInquiry.assigned_agent_id)?.full_name || "Unknown"}</p>
+                          <p className="text-xs text-blue-400 mt-1">Assigned for follow-up only. Use Convert to Lead to add to agent's leads.</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => setShowViewInquiry(false)}
+                      className="w-full py-4 bg-gray-200 text-gray-700 rounded-2xl font-bold hover:bg-gray-300 transition-all mt-2"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )
+          }
 
           {/* Create Agent Modal */}
-          {showCreateAgent && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="bg-white rounded-[2.5rem] p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl relative"
-              >
-                <button onClick={() => setShowCreateAgent(false)} className="absolute top-6 right-8 text-gray-400 hover:text-gray-600">
-                  <FaTimes size={24} />
-                </button>
-
-                <h2 className="text-3xl font-black text-gray-900 mb-8 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-600 shadow-sm"><FaUserPlus size={24} /></div>
-                  Create New Agent
-                </h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name *</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaUser size={14} /></div>
-                      <input
-                        type="text"
-                        placeholder="Enter full name"
-                        value={agentForm.fullName}
-                        onChange={(e) => setAgentForm({ ...agentForm, fullName: e.target.value })}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email *</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaEnvelope size={14} /></div>
-                      <input
-                        type="email"
-                        placeholder="Enter email"
-                        value={agentForm.email}
-                        onChange={(e) => setAgentForm({ ...agentForm, email: e.target.value })}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Phone *</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaPhone size={14} /></div>
-                      <input
-                        type="tel"
-                        placeholder="Enter phone number"
-                        value={agentForm.phone}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-                          setAgentForm({ ...agentForm, phone: val });
-                        }}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">PIN Code</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors">
-                        {pincodeLoading ? <FaSpinner className="animate-spin" /> : <FaMapMarkerAlt size={14} />}
-                      </div>
-                      <input
-                        type="tel"
-                        placeholder="6-digit PIN code"
-                        value={agentForm.pincode}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, "").slice(0, 6);
-                          setAgentForm({ ...agentForm, pincode: val });
-                          handlePincodeLookup(val, false);
-                        }}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Alternate Number</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaPhone size={14} /></div>
-                      <input
-                        type="tel"
-                        placeholder="Enter alternate number"
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-                          setAgentForm({ ...agentForm, alternatePhone: val });
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">State</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
-                      <select
-                        value={agentForm.state_id || ""}
-                        onChange={(e) => {
-                          const id = e.target.value;
-                          const name = states.find(s => s.id == id)?.name;
-                          setAgentForm({ ...agentForm, state_id: id, state: name });
-                          fetchDistricts(id);
-                        }}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none"
-                      >
-                        <option value="">Select State</option>
-                        {states.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">District</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
-                      <select
-                        value={agentForm.district_id || ""}
-                        onChange={(e) => {
-                          const id = e.target.value;
-                          const name = districts.find(d => d.id == id)?.name;
-                          setAgentForm({ ...agentForm, district_id: id, district: name });
-                          fetchMandals(agentForm.state_id, id);
-                        }}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none disabled:opacity-50"
-                        disabled={!agentForm.state_id}
-                      >
-                        <option value="">Select District</option>
-                        {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Mandal</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
-                      <input
-                        list="mandal-list-create"
-                        placeholder="Enter mandal"
-                        value={agentForm.mandal}
-                        onChange={(e) => setAgentForm({ ...agentForm, mandal: e.target.value })}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
-                      />
-                      <datalist id="mandal-list-create">
-                        {mandalSuggestions.map((m, i) => <option key={i} value={m} />)}
-                      </datalist>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Village</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
-                      <input
-                        list="village-list-create"
-                        placeholder="Enter village"
-                        value={agentForm.village}
-                        onChange={(e) => setAgentForm({ ...agentForm, village: e.target.value })}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
-                      />
-                      <datalist id="village-list-create">
-                        {mandalSuggestions.map((v, i) => <option key={i} value={v} />)}
-                      </datalist>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Aadhar Number</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaIdCard size={14} /></div>
-                      <input
-                        type="text"
-                        placeholder="Enter Aadhar number"
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, "").slice(0, 12);
-                          setAgentForm({ ...agentForm, aadharNumber: val });
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Password *</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaLock size={14} /></div>
-                      <input
-                        type="password"
-                        placeholder="Enter password"
-                        value={agentForm.password}
-                        onChange={(e) => setAgentForm({ ...agentForm, password: e.target.value })}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-8 space-y-4">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Profile Photo</label>
-                  <div className="flex items-center gap-6">
-                    <div className="w-20 h-20 rounded-full bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400 overflow-hidden">
-                      {agentForm.profilePhoto ? (
-                        <img src={URL.createObjectURL(agentForm.profilePhoto)} className="w-full h-full object-cover" />
-                      ) : (
-                        <FaUser size={32} />
-                      )}
-                    </div>
-                    <input
-                      type="file"
-                      onChange={(e) => setAgentForm({ ...agentForm, profilePhoto: e.target.files[0] })}
-                      className="text-xs font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-orange-50 file:text-orange-600 hover:file:bg-orange-100 transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-4 mt-10">
-                  <button
-                    onClick={createAgent}
-                    disabled={loading}
-                    className="flex-1 py-4 bg-orange-600 text-white rounded-2xl font-black shadow-lg shadow-orange-200 hover:bg-orange-700 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
-                  >
-                    {loading ? <FaSpinner className="animate-spin" /> : <FaUserPlus />}
-                    {loading ? "Creating Agent..." : "Create Agent"}
+          {
+            showCreateAgent && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  className="bg-white rounded-3xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl relative"
+                >
+                  <button onClick={() => setShowCreateAgent(false)} className="absolute top-4 right-6 text-gray-400 hover:text-gray-600">
+                    <FaTimes size={20} />
                   </button>
-                  <button
-                    onClick={() => setShowCreateAgent(false)}
-                    className="px-10 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black hover:bg-gray-200 transition-all"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
 
-          {/* View Agent Modal */}
-          {showViewAgent && viewAgent && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-[2rem] p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto"
-              >
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-black text-gray-900">Agent Details</h3>
-                  <button
-                    onClick={() => setShowViewAgent(false)}
-                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                  >
-                    <FaTimesCircle className="text-2xl text-gray-400" />
-                  </button>
-                </div>
+                  <h2 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 shadow-sm"><FaUserPlus size={20} /></div>
+                    Create New Agent
+                  </h2>
 
-                <div className="space-y-4">
-                  {/* Header with status */}
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center text-white text-3xl font-bold overflow-hidden border-4 border-white shadow-md">
-                      {viewAgent.profile_photo ? (
-                        <img src={`${API_URL.replace(/\/api\/?$/, "")}/${viewAgent.profile_photo}`} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        viewAgent.full_name?.charAt(0).toUpperCase()
-                      )}
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-gray-900">{viewAgent.full_name}</h2>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${viewAgent.status === 'ACTIVE' ? 'bg-green-100 text-green-600' :
-                        viewAgent.status === 'PENDING' ? 'bg-yellow-100 text-yellow-600' :
-                          viewAgent.status === 'REJECTED' ? 'bg-red-100 text-red-600' :
-                            'bg-gray-100 text-gray-600'
-                        }`}>
-                        {viewAgent.status}
-                      </span>
-                      <p className="text-sm text-gray-500 capitalize mt-1">{viewAgent.role}</p>
-                    </div>
-                  </div>
-
-                  {/* Details Grid */}
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="bg-gray-50 p-4 rounded-xl">
-                      <p className="text-xs text-gray-500 uppercase font-bold">Email</p>
-                      <p className="text-gray-900">{viewAgent.email}</p>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-xl">
-                      <p className="text-xs text-gray-500 uppercase font-bold">Phone</p>
-                      <p className="text-gray-900">{viewAgent.phone}</p>
-                    </div>
-                    {viewAgent.alternate_phone && (
-                      <div className="bg-gray-50 p-4 rounded-xl">
-                        <p className="text-xs text-gray-500 uppercase font-bold">Alternate Phone</p>
-                        <p className="text-gray-900">{viewAgent.alternate_phone}</p>
-                      </div>
-                    )}
-                    <div className="bg-gray-50 p-4 rounded-xl">
-                      <p className="text-xs text-gray-500 uppercase font-bold">Address</p>
-                      <p className="text-gray-900">
-                        {viewAgent.village && `${viewAgent.village}, `}
-                        {viewAgent.mandal && `${viewAgent.mandal}, `}
-                        {viewAgent.district?.name || viewAgent.district_id}, {viewAgent.state?.name || viewAgent.state_id}
-                      </p>
-                    </div>
-                    {viewAgent.aadhar_number && (
-                      <div className="bg-gray-50 p-4 rounded-xl">
-                        <p className="text-xs text-gray-500 uppercase font-bold">Aadhar Number</p>
-                        <p className="text-gray-900">XXXX-XXXX-{viewAgent.aadhar_number.slice(-4)}</p>
-                      </div>
-                    )}
-                    <div className="bg-gray-50 p-4 rounded-xl">
-                      <p className="text-xs text-gray-500 uppercase font-bold">Joined Date</p>
-                      <p className="text-gray-900">{new Date(viewAgent.created_at).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-
-                  {/* Stats */}
-                  <div className="grid grid-cols-3 gap-4 mt-4">
-                    <div className="bg-blue-50 p-4 rounded-xl text-center">
-                      <p className="text-2xl font-bold text-blue-600">
-                        {leads.filter((l) => l.agent_id == viewAgent.id).length}
-                      </p>
-                      <p className="text-xs text-gray-500">Total Leads</p>
-                    </div>
-                    <div className="bg-green-50 p-4 rounded-xl text-center">
-                      <p className="text-2xl font-bold text-green-600">
-                        {leads.filter((l) => l.agent_id == viewAgent.id && l.status === "WON").length}
-                      </p>
-                      <p className="text-xs text-gray-500">Won</p>
-                    </div>
-                    <div className="bg-purple-50 p-4 rounded-xl text-center">
-                      <p className="text-2xl font-bold text-purple-600">
-                        ₹{leads.filter((l) => l.agent_id == viewAgent.id).reduce((sum, l) => sum + (parseFloat(l.paid_amount) || 0), 0).toFixed(0)}
-                      </p>
-                      <p className="text-xs text-gray-500">Revenue</p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setShowViewAgent(false)}
-                    className="w-full py-4 bg-gray-200 text-gray-700 rounded-2xl font-bold hover:bg-gray-300 transition-all mt-6"
-                  >
-                    Close
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-
-          {/* Edit Agent Modal */}
-          {showEditAgent && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="bg-white rounded-[2.5rem] p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl relative"
-              >
-                <button onClick={() => setShowEditAgent(false)} className="absolute top-6 right-8 text-gray-400 hover:text-gray-600">
-                  <FaTimes size={24} />
-                </button>
-
-                <h2 className="text-3xl font-black text-gray-900 mb-8 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-600 shadow-sm"><FaEdit size={24} /></div>
-                  Edit Agent Details
-                </h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name *</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaUser size={14} /></div>
-                      <input
-                        type="text"
-                        placeholder="Enter full name"
-                        value={editAgentForm.fullName}
-                        onChange={(e) => setEditAgentForm({ ...editAgentForm, fullName: e.target.value })}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email *</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaEnvelope size={14} /></div>
-                      <input
-                        type="email"
-                        placeholder="Enter email"
-                        value={editAgentForm.email}
-                        onChange={(e) => setEditAgentForm({ ...editAgentForm, email: e.target.value })}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Phone *</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaPhone size={14} /></div>
-                      <input
-                        type="tel"
-                        placeholder="Enter phone number"
-                        value={editAgentForm.phone}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-                          setEditAgentForm({ ...editAgentForm, phone: val });
-                        }}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">PIN Code</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors">
-                        {pincodeLoading ? <FaSpinner className="animate-spin" /> : <FaMapMarkerAlt size={14} />}
-                      </div>
-                      <input
-                        type="tel"
-                        placeholder="6-digit PIN code"
-                        value={editAgentForm.pincode}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, "").slice(0, 6);
-                          setEditAgentForm({ ...editAgentForm, pincode: val });
-                          handlePincodeLookup(val, true);
-                        }}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Alternate Phone</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaPhone size={14} /></div>
-                      <input
-                        type="tel"
-                        placeholder="Enter alternate phone"
-                        value={editAgentForm.alternatePhone}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-                          setEditAgentForm({ ...editAgentForm, alternatePhone: val });
-                        }}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">State</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
-                      <select
-                        value={editAgentForm.state_id || ""}
-                        onChange={(e) => {
-                          const id = e.target.value;
-                          const name = states.find(s => s.id == id)?.name;
-                          setEditAgentForm({ ...editAgentForm, state_id: id, state: name });
-                          fetchDistricts(id);
-                        }}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none"
-                      >
-                        <option value="">Select State</option>
-                        {states.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">District</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
-                      <select
-                        value={editAgentForm.district_id || ""}
-                        onChange={(e) => {
-                          const id = e.target.value;
-                          const name = districts.find(d => d.id == id)?.name;
-                          setEditAgentForm({ ...editAgentForm, district_id: id, district: name });
-                          fetchMandals(editAgentForm.state_id, id);
-                        }}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none disabled:opacity-50"
-                        disabled={!editAgentForm.state_id}
-                      >
-                        <option value="">Select District</option>
-                        {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Mandal</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
-                      <input
-                        list="mandal-list-edit"
-                        placeholder="Enter mandal"
-                        value={editAgentForm.mandal}
-                        onChange={(e) => setEditAgentForm({ ...editAgentForm, mandal: e.target.value })}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
-                      />
-                      <datalist id="mandal-list-edit">
-                        {mandalSuggestions.map((m, i) => <option key={i} value={m} />)}
-                      </datalist>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Village</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
-                      <input
-                        list="village-list-edit"
-                        placeholder="Enter village"
-                        value={editAgentForm.village}
-                        onChange={(e) => setEditAgentForm({ ...editAgentForm, village: e.target.value })}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
-                      />
-                      <datalist id="village-list-edit">
-                        {mandalSuggestions.map((v, i) => <option key={i} value={v} />)}
-                      </datalist>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaCheckCircle size={14} /></div>
-                      <select
-                        value={editAgentForm.status}
-                        onChange={(e) => setEditAgentForm({ ...editAgentForm, status: e.target.value })}
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none"
-                      >
-                        <option value="ACTIVE">ACTIVE</option>
-                        <option value="PENDING">PENDING</option>
-                        <option value="INACTIVE">INACTIVE</option>
-                        <option value="REJECTED">REJECTED</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-8 space-y-4">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Profile Photo</label>
-                  <div className="flex items-center gap-6">
-                    <div className="w-20 h-20 rounded-full bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400 overflow-hidden">
-                      {editAgentForm.profilePhoto ? (
-                        <img src={typeof editAgentForm.profilePhoto === 'string' ? `${API_URL.replace(/\/api\/?$/, "")}/${editAgentForm.profilePhoto}` : URL.createObjectURL(editAgentForm.profilePhoto)} className="w-full h-full object-cover" />
-                      ) : (
-                        <FaUser size={32} />
-                      )}
-                    </div>
-                    <input
-                      type="file"
-                      onChange={(e) => setEditAgentForm({ ...editAgentForm, profilePhoto: e.target.files[0] })}
-                      className="text-xs font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-orange-50 file:text-orange-600 hover:file:bg-orange-100 transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-4 mt-10">
-                  <button
-                    onClick={updateAgent}
-                    disabled={loading}
-                    className="flex-1 py-4 bg-orange-600 text-white rounded-2xl font-black shadow-lg shadow-orange-200 hover:bg-orange-700 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
-                  >
-                    {loading ? <FaSpinner className="animate-spin" /> : <FaCheckCircle />}
-                    {loading ? "Updating Agent..." : "Update Agent"}
-                  </button>
-                  <button
-                    onClick={() => setShowEditAgent(false)}
-                    className="px-10 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black hover:bg-gray-200 transition-all"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-
-          {/* View Lead Modal */}
-          {showViewLead && viewLead && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-[2rem] p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-              >
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-black text-gray-900">Lead Details</h3>
-                  <button
-                    onClick={() => setShowViewLead(false)}
-                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                  >
-                    <FaTimesCircle className="text-2xl text-gray-400" />
-                  </button>
-                </div>
-
-                <div className="space-y-6">
-                  {/* Client Info */}
-                  <div className="bg-orange-50 p-6 rounded-2xl">
-                    <h4 className="text-sm font-bold text-orange-600 uppercase mb-4">Client Information</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs text-gray-500">Name</p>
-                        <p className="font-bold text-gray-900">{viewLead.client_name}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Phone</p>
-                        <p className="font-bold text-gray-900">{viewLead.client_phone}</p>
-                      </div>
-                      {viewLead.client_email && (
-                        <div>
-                          <p className="text-xs text-gray-500">Email</p>
-                          <p className="font-bold text-gray-900">{viewLead.client_email}</p>
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-xs text-gray-500">Service Type</p>
-                        <p className="font-bold text-gray-900">{viewLead.service_type}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Location */}
-                  {viewLead.exact_location && (
-                    <div className="bg-blue-50 p-6 rounded-2xl">
-                      <h4 className="text-sm font-bold text-blue-600 uppercase mb-2">Location</h4>
-                      <p className="text-gray-900">{viewLead.exact_location}</p>
-                      {viewLead.latitude && viewLead.longitude && (
-                        <p className="text-xs text-gray-500 mt-2">
-                          GPS: {parseFloat(viewLead.latitude).toFixed(4)}, {parseFloat(viewLead.longitude).toFixed(4)}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Project Details */}
-                  {viewLead.project_brief && (
-                    <div className="bg-gray-50 p-6 rounded-2xl">
-                      <h4 className="text-sm font-bold text-gray-600 uppercase mb-2">Project Brief</h4>
-                      <p className="text-gray-900">{viewLead.project_brief}</p>
-                    </div>
-                  )}
-
-                  {/* Lost Reason */}
-                  {viewLead.status === "LOST" && viewLead.lost_reason && (
-                    <div className="bg-red-50 p-6 rounded-2xl border-2 border-red-100">
-                      <h4 className="text-sm font-bold text-red-600 uppercase mb-2">Reason for Lost</h4>
-                      <p className="text-red-900 font-medium">{viewLead.lost_reason}</p>
-                    </div>
-                  )}
-
-                  {/* Status & Payment */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-purple-50 p-4 rounded-2xl">
-                      <p className="text-xs text-gray-500 uppercase">Lead Status</p>
-                      <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(viewLead.status)}`}>
-                        {viewLead.status}
-                      </span>
-                    </div>
-                    <div className="bg-green-50 p-4 rounded-2xl">
-                      <p className="text-xs text-gray-500 uppercase">Payment Status</p>
-                      <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(viewLead.payment_status)}`}>
-                        {viewLead.payment_status}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Payment Details */}
-                  {(viewLead.total_amount > 0 || viewLead.paid_amount > 0) && (
-                    <div className="bg-yellow-50 p-6 rounded-2xl">
-                      <h4 className="text-sm font-bold text-yellow-600 uppercase mb-4">Payment Details</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-xs text-gray-500">Total Amount</p>
-                          <p className="text-xl font-bold text-gray-900">₹{viewLead.total_amount || 0}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Paid Amount</p>
-                          <p className="text-xl font-bold text-green-600">₹{viewLead.paid_amount || 0}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Agent */}
-                  <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-2xl">
-                    <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold">
-                      {agents.find((a) => a.id === viewLead.agent_id)?.full_name?.charAt(0) || "A"}
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Assigned Agent</p>
-                      <p className="font-bold text-gray-900">
-                        {agents.find((a) => a.id === viewLead.agent_id)?.full_name || "Unknown"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setShowViewLead(false)}
-                    className="w-full py-4 bg-gray-200 text-gray-700 rounded-2xl font-bold hover:bg-gray-300 transition-all"
-                  >
-                    Close
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-
-          {/* Edit Lead Modal - Full form matching agent create lead */}
-          {showEditLead && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="bg-white rounded-[2.5rem] p-10 w-full max-w-6xl max-h-[90vh] overflow-y-auto shadow-2xl custom-scrollbar"
-              >
-                <div className="flex justify-between items-center mb-8">
-                  <h3 className="text-2xl font-black text-gray-900">Edit Lead</h3>
-                  <button onClick={() => setShowEditLead(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                    <FaTimesCircle className="text-2xl text-gray-400" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-                  {/* Client Information */}
-                  <div className="space-y-6">
-                    <h4 className="text-sm font-bold text-orange-600 uppercase tracking-wider flex items-center gap-2">
-                      <FaUser /> Client Information
-                    </h4>
-                    <LeadInputField label="Client Name *" value={editLeadForm.clientName} onChange={(e) => setEditLeadForm({ ...editLeadForm, clientName: e.target.value })} placeholder="Enter client name" icon={<FaUser />} />
-                    <LeadInputField label="Phone Number *" value={editLeadForm.clientPhone} onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-                      setEditLeadForm({ ...editLeadForm, clientPhone: val });
-                    }} placeholder="Enter phone number" icon={<FaPhone />} />
-                    <LeadInputField label="Email" value={editLeadForm.clientEmail} onChange={(e) => setEditLeadForm({ ...editLeadForm, clientEmail: e.target.value })} placeholder="Enter email (optional)" icon={<FaEnvelope />} type="email" />
-                  </div>
-
-                  {/* Service Details */}
-                  <div className="space-y-6">
-                    <h4 className="text-sm font-bold text-orange-600 uppercase tracking-wider flex items-center gap-2">
-                      <FaFileAlt /> Service Details
-                    </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Service Type *</label>
-                      <select value={editLeadForm.serviceType} onChange={(e) => setEditLeadForm({ ...editLeadForm, serviceType: e.target.value })} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all">
-                        <option value="">Select Service</option>
-                        <option value="MSME Services">MSME Services</option>
-                        <option value="Business Promotions">Business Promotions</option>
-                        <option value="Financial Services">Financial Services</option>
-                        <option value="Digital Marketing">Digital Marketing</option>
-                        <option value="Others">Others</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Project Brief</label>
-                      <textarea value={editLeadForm.projectBrief} onChange={(e) => setEditLeadForm({ ...editLeadForm, projectBrief: e.target.value })} placeholder="Describe the project requirements..." rows={4} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all resize-none" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Lead Status</label>
-                      <select value={editLeadForm.status} onChange={(e) => setEditLeadForm({ ...editLeadForm, status: e.target.value })} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all">
-                        <option value="NEW">New</option>
-                        <option value="CONTACTED">Contacted</option>
-                        <option value="FOLLOW_UP">Follow Up</option>
-                        <option value="WON">Won</option>
-                        <option value="LOST">Lost</option>
-                      </select>
-                    </div>
-
-                    {/* Lost Reason Field */}
-                    {editLeadForm.status === "LOST" && (
-                      <div className="space-y-2 animate-in fade-in slide-in-from-top-4 duration-300">
-                        <label className="text-xs font-bold text-red-600 uppercase tracking-wider">Reason for Lost *</label>
-                        <textarea
-                          value={editLeadForm.lostReason}
-                          onChange={(e) => setEditLeadForm({ ...editLeadForm, lostReason: e.target.value })}
-                          placeholder="Please provide the reason why this lead was lost..."
-                          rows={3}
-                          className="w-full p-4 bg-red-50 border-2 border-red-100 rounded-2xl focus:border-red-500 focus:bg-white outline-none transition-all resize-none text-red-900 placeholder:text-red-300"
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">Full Name *</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaUser size={14} /></div>
+                        <input
+                          type="text"
+                          placeholder="Enter full name"
+                          value={agentForm.fullName}
+                          onChange={(e) => setAgentForm({ ...agentForm, fullName: e.target.value })}
+                          className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
                         />
                       </div>
-                    )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">Email *</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaEnvelope size={14} /></div>
+                        <input
+                          type="email"
+                          placeholder="Enter email"
+                          value={agentForm.email}
+                          onChange={(e) => setAgentForm({ ...agentForm, email: e.target.value })}
+                          className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">Phone *</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaPhone size={14} /></div>
+                        <input
+                          type="tel"
+                          placeholder="Enter phone number"
+                          value={agentForm.phone}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                            setAgentForm({ ...agentForm, phone: val });
+                          }}
+                          className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                        />
+                      </div>
+                    </div>
+
+
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">Alternate Number</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaPhone size={14} /></div>
+                        <input
+                          type="tel"
+                          placeholder="Enter alternate number"
+                          value={agentForm.alternatePhone}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                            setAgentForm({ ...agentForm, alternatePhone: val });
+                          }}
+                          className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">State</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
+                        <select
+                          value={agentForm.state_id || ""}
+                          onChange={(e) => {
+                            const id = e.target.value;
+                            const name = states.find(s => s.id == id)?.name;
+                            setAgentForm({ ...agentForm, state_id: id, state: name });
+                            fetchDistricts(id);
+                          }}
+                          className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none"
+                        >
+                          <option value="">Select State</option>
+                          {states.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">District</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
+                        <select
+                          value={agentForm.district_id || ""}
+                          onChange={(e) => {
+                            const id = e.target.value;
+                            const name = districts.find(d => d.id == id)?.name;
+                            setAgentForm({ ...agentForm, district_id: id, district: name });
+                            fetchMandals(agentForm.state_id, id);
+                          }}
+                          className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none disabled:opacity-50"
+                          disabled={!agentForm.state_id}
+                        >
+                          <option value="">Select District</option>
+                          {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">Mandal</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
+                        <select
+                          value={agentForm.mandal_id || ""}
+                          onChange={(e) => setAgentForm({ ...agentForm, mandal_id: e.target.value })}
+                          className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none disabled:opacity-50"
+                          disabled={!agentForm.district_id}
+                        >
+                          <option value="">Select Mandal</option>
+                          {mandals.map((m, i) => <option key={i} value={m.id}>{m.mandal}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">Village</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
+                        <input
+                          list="village-list-create"
+                          placeholder="Enter village"
+                          value={agentForm.village}
+                          onChange={(e) => setAgentForm({ ...agentForm, village: e.target.value })}
+                          className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                        />
+                        <datalist id="village-list-create">
+                          {mandalSuggestions.map((v, i) => <option key={i} value={v} />)}
+                        </datalist>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">Aadhar Number</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaIdCard size={14} /></div>
+                        <input
+                          type="text"
+                          placeholder="Enter Aadhar number"
+                          value={agentForm.aadharNumber}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "").slice(0, 12);
+                            setAgentForm({ ...agentForm, aadharNumber: val });
+                          }}
+                          className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">Password *</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaLock size={14} /></div>
+                        <input
+                          type="password"
+                          placeholder="Enter password"
+                          value={agentForm.password}
+                          onChange={(e) => setAgentForm({ ...agentForm, password: e.target.value })}
+                          className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Location */}
-                  <div className="space-y-6">
-                    <h4 className="text-sm font-bold text-orange-600 uppercase tracking-wider flex items-center gap-2">
-                      <FaMapMarkerAlt /> Location
-                    </h4>
-                    <button onClick={captureEditLeadGPS} disabled={editLeadGpsLoading} className="w-full py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all flex items-center justify-center gap-2 disabled:opacity-70">
-                      {editLeadGpsLoading ? <FaSpinner className="animate-spin" /> : <FaMapPin />}
-                      {editLeadGpsLoading ? "Capturing..." : "Capture GPS Location"}
+                  <div className="mt-8 space-y-4">
+                    <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">Profile Photo</label>
+                    <div className="flex items-center gap-6">
+                      <div className="w-20 h-20 rounded-full bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400 overflow-hidden">
+                        {agentForm.profilePhoto ? (
+                          <img src={URL.createObjectURL(agentForm.profilePhoto)} className="w-full h-full object-cover" />
+                        ) : (
+                          <FaUser size={32} />
+                        )}
+                      </div>
+                      <input
+                        type="file"
+                        onChange={(e) => setAgentForm({ ...agentForm, profilePhoto: e.target.files[0] })}
+                        className="text-xs font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-orange-50 file:text-orange-600 hover:file:bg-orange-100 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 mt-10">
+                    <button
+                      onClick={createAgent}
+                      disabled={loading}
+                      className="flex-1 py-4 bg-orange-600 text-white rounded-2xl font-black shadow-lg shadow-orange-200 hover:bg-orange-700 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+                    >
+                      {loading ? <FaSpinner className="animate-spin" /> : <FaUserPlus />}
+                      {loading ? "Creating Agent..." : "Create Agent"}
                     </button>
-                    {editLeadForm.latitude && editLeadForm.longitude && (
-                      <div className="p-3 bg-green-50 rounded-xl text-sm">
-                        <p className="font-bold text-green-800">GPS Captured!</p>
-                        <p className="text-green-600">Lat: {editLeadForm.latitude}</p>
-                        <p className="text-green-600">Long: {editLeadForm.longitude}</p>
+                    <button
+                      onClick={() => setShowCreateAgent(false)}
+                      className="px-10 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black hover:bg-gray-200 transition-all"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )
+          }
+
+          {/* View Agent Modal */}
+          {
+            showViewAgent && viewAgent && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-white rounded-[2rem] p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+                >
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-2xl font-black text-gray-900">Agent Details</h3>
+                    <button
+                      onClick={() => setShowViewAgent(false)}
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                    >
+                      <FaTimesCircle className="text-2xl text-gray-400" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Header with status */}
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center text-white text-3xl font-bold overflow-hidden border-4 border-white shadow-md">
+                        {viewAgent.profile_photo ? (
+                          <img src={`${API_URL.replace(/\/api\/?$/, "")}/${viewAgent.profile_photo}`} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          viewAgent.full_name?.charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900">{viewAgent.full_name}</h2>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${viewAgent.status === 'ACTIVE' ? 'bg-green-100 text-green-600' :
+                          viewAgent.status === 'PENDING' ? 'bg-yellow-100 text-yellow-600' :
+                            viewAgent.status === 'REJECTED' ? 'bg-red-100 text-red-600' :
+                              'bg-gray-100 text-gray-600'
+                          }`}>
+                          {viewAgent.status}
+                        </span>
+                        <p className="text-sm text-gray-500 capitalize mt-1">{viewAgent.role}</p>
+                      </div>
+                    </div>
+
+                    {/* Details Grid */}
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="bg-gray-50 p-4 rounded-xl">
+                        <p className="text-xs text-gray-500 uppercase font-bold">Email</p>
+                        <p className="text-gray-900">{viewAgent.email}</p>
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-xl">
+                        <p className="text-xs text-gray-500 uppercase font-bold">Phone</p>
+                        <p className="text-gray-900">{viewAgent.phone}</p>
+                      </div>
+                      {viewAgent.alternate_phone && (
+                        <div className="bg-gray-50 p-4 rounded-xl">
+                          <p className="text-xs text-gray-500 uppercase font-bold">Alternate Phone</p>
+                          <p className="text-gray-900">{viewAgent.alternate_phone}</p>
+                        </div>
+                      )}
+                      <div className="bg-gray-50 p-4 rounded-xl">
+                        <p className="text-xs text-gray-500 uppercase font-bold">Address</p>
+                        <p className="text-gray-900">
+                          {viewAgent.village && `${viewAgent.village}, `}
+                          {viewAgent.mandal && `${viewAgent.mandal?.name || viewAgent.mandal}, `}
+                          {viewAgent.district?.name || viewAgent.district_id}, {viewAgent.state?.name || viewAgent.state_id}
+                        </p>
+                      </div>
+                      {viewAgent.aadhar_number && (
+                        <div className="bg-gray-50 p-4 rounded-xl">
+                          <p className="text-xs text-gray-500 uppercase font-bold">Aadhar Number</p>
+                          <p className="text-gray-900">XXXX-XXXX-{viewAgent.aadhar_number.slice(-4)}</p>
+                        </div>
+                      )}
+                      <div className="bg-gray-50 p-4 rounded-xl">
+                        <p className="text-xs text-gray-500 uppercase font-bold">Joined Date</p>
+                        <p className="text-gray-900">{new Date(viewAgent.created_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="grid grid-cols-3 gap-4 mt-4">
+                      <div className="bg-blue-50 p-4 rounded-xl text-center">
+                        <p className="text-2xl font-bold text-blue-600">
+                          {leads.filter((l) => l.agent_id == viewAgent.id).length}
+                        </p>
+                        <p className="text-xs text-gray-500">Total Leads</p>
+                      </div>
+                      <div className="bg-green-50 p-4 rounded-xl text-center">
+                        <p className="text-2xl font-bold text-green-600">
+                          {leads.filter((l) => l.agent_id == viewAgent.id && l.status === "WON").length}
+                        </p>
+                        <p className="text-xs text-gray-500">Won</p>
+                      </div>
+                      <div className="bg-purple-50 p-4 rounded-xl text-center">
+                        <p className="text-2xl font-bold text-purple-600">
+                          ₹{leads.filter((l) => l.agent_id == viewAgent.id).reduce((sum, l) => sum + (parseFloat(l.paid_amount) || 0), 0).toFixed(0)}
+                        </p>
+                        <p className="text-xs text-gray-500">Revenue</p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setShowViewAgent(false)}
+                      className="w-full py-4 bg-gray-200 text-gray-700 rounded-2xl font-bold hover:bg-gray-300 transition-all mt-6"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )
+          }
+
+          {/* Edit Agent Modal */}
+          {
+            showEditAgent && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  className="bg-white rounded-3xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl relative"
+                >
+                  <button onClick={() => setShowEditAgent(false)} className="absolute top-4 right-6 text-gray-400 hover:text-gray-600">
+                    <FaTimes size={20} />
+                  </button>
+
+                  <h2 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 shadow-sm"><FaEdit size={20} /></div>
+                    Edit Agent Details
+                  </h2>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">Full Name *</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaUser size={14} /></div>
+                        <input
+                          type="text"
+                          placeholder="Enter full name"
+                          value={editAgentForm.fullName}
+                          onChange={(e) => setEditAgentForm({ ...editAgentForm, fullName: e.target.value })}
+                          className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">Email *</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaEnvelope size={14} /></div>
+                        <input
+                          type="email"
+                          placeholder="Enter email"
+                          value={editAgentForm.email}
+                          onChange={(e) => setEditAgentForm({ ...editAgentForm, email: e.target.value })}
+                          className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">Phone *</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaPhone size={14} /></div>
+                        <input
+                          type="tel"
+                          placeholder="Enter phone number"
+                          value={editAgentForm.phone}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                            setEditAgentForm({ ...editAgentForm, phone: val });
+                          }}
+                          className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                        />
+                      </div>
+                    </div>
+
+
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Alternate Phone</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaPhone size={14} /></div>
+                        <input
+                          type="tel"
+                          placeholder="Enter alternate phone"
+                          value={editAgentForm.alternatePhone}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                            setEditAgentForm({ ...editAgentForm, alternatePhone: val });
+                          }}
+                          className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">Aadhar Number</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaIdCard size={14} /></div>
+                        <input
+                          type="text"
+                          placeholder="Enter Aadhar number"
+                          value={editAgentForm.aadharNumber || ""}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "").slice(0, 12);
+                            setEditAgentForm({ ...editAgentForm, aadharNumber: val });
+                          }}
+                          className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">State</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
+                        <select
+                          value={editAgentForm.state_id || ""}
+                          onChange={(e) => {
+                            const id = e.target.value;
+                            const name = states.find(s => s.id == id)?.name;
+                            setEditAgentForm({ ...editAgentForm, state_id: id, state: name });
+                            fetchDistricts(id);
+                          }}
+                          className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none"
+                        >
+                          <option value="">Select State</option>
+                          {states.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">District</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
+                        <select
+                          value={editAgentForm.district_id || ""}
+                          onChange={(e) => {
+                            const id = e.target.value;
+                            const name = districts.find(d => d.id == id)?.name;
+                            setEditAgentForm({ ...editAgentForm, district_id: id, district: name });
+                            fetchMandals(editAgentForm.state_id, id);
+                          }}
+                          className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none disabled:opacity-50"
+                          disabled={!editAgentForm.state_id}
+                        >
+                          <option value="">Select District</option>
+                          {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">Mandal</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
+                        <select
+                          value={editAgentForm.mandal_id || ""}
+                          onChange={(e) => setEditAgentForm({ ...editAgentForm, mandal_id: e.target.value })}
+                          className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none disabled:opacity-50"
+                          disabled={!editAgentForm.district_id}
+                        >
+                          <option value="">Select Mandal</option>
+                          {mandals.map((m, i) => <option key={i} value={m.id}>{m.mandal}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">Village</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaMapMarkerAlt size={14} /></div>
+                        <input
+                          list="village-list-edit"
+                          placeholder="Enter village"
+                          value={editAgentForm.village}
+                          onChange={(e) => setEditAgentForm({ ...editAgentForm, village: e.target.value })}
+                          className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold"
+                        />
+                        <datalist id="village-list-edit">
+                          {mandalSuggestions.map((v, i) => <option key={i} value={v} />)}
+                        </datalist>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors"><FaCheckCircle size={14} /></div>
+                        <select
+                          value={editAgentForm.status}
+                          onChange={(e) => setEditAgentForm({ ...editAgentForm, status: e.target.value })}
+                          className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white transition-all outline-none text-sm font-bold appearance-none"
+                        >
+                          <option value="ACTIVE">ACTIVE</option>
+                          <option value="PENDING">PENDING</option>
+                          <option value="INACTIVE">INACTIVE</option>
+                          <option value="REJECTED">REJECTED</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-8 space-y-4">
+                    <label className="text-[11px] font-black text-gray-600 uppercase tracking-widest ml-1">Profile Photo</label>
+                    <div className="flex items-center gap-6">
+                      <div className="w-20 h-20 rounded-full bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400 overflow-hidden">
+                        {editAgentForm.profilePhoto ? (
+                          <img src={typeof editAgentForm.profilePhoto === 'string' ? `${API_URL.replace(/\/api\/?$/, "")}/${editAgentForm.profilePhoto}` : URL.createObjectURL(editAgentForm.profilePhoto)} className="w-full h-full object-cover" />
+                        ) : (
+                          <FaUser size={32} />
+                        )}
+                      </div>
+                      <input
+                        type="file"
+                        onChange={(e) => setEditAgentForm({ ...editAgentForm, profilePhoto: e.target.files[0] })}
+                        className="text-xs font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-orange-50 file:text-orange-600 hover:file:bg-orange-100 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 mt-10">
+                    <button
+                      onClick={updateAgent}
+                      disabled={loading}
+                      className="flex-1 py-4 bg-orange-600 text-white rounded-2xl font-black shadow-lg shadow-orange-200 hover:bg-orange-700 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+                    >
+                      {loading ? <FaSpinner className="animate-spin" /> : <FaCheckCircle />}
+                      {loading ? "Updating Agent..." : "Update Agent"}
+                    </button>
+                    <button
+                      onClick={() => setShowEditAgent(false)}
+                      className="px-10 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black hover:bg-gray-200 transition-all"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )
+          }
+
+          {/* View Lead Modal */}
+          {
+            showViewLead && viewLead && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-white rounded-[2rem] p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+                >
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-2xl font-black text-gray-900">Lead Details</h3>
+                    <button
+                      onClick={() => setShowViewLead(false)}
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                    >
+                      <FaTimesCircle className="text-2xl text-gray-400" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-6">
+                    {/* Client Info */}
+                    <div className="bg-orange-50 p-6 rounded-2xl">
+                      <h4 className="text-sm font-bold text-orange-600 uppercase mb-4">Client Information</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-gray-500">Name</p>
+                          <p className="font-bold text-gray-900">{viewLead.client_name}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Phone</p>
+                          <p className="font-bold text-gray-900">{viewLead.client_phone}</p>
+                        </div>
+                        {viewLead.client_email && (
+                          <div>
+                            <p className="text-xs text-gray-500">Email</p>
+                            <p className="font-bold text-gray-900">{viewLead.client_email}</p>
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-xs text-gray-500">Service Type</p>
+                          <p className="font-bold text-gray-900">{viewLead.service_type}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Location */}
+                    {viewLead.exact_location && (
+                      <div className="bg-blue-50 p-6 rounded-2xl">
+                        <h4 className="text-sm font-bold text-blue-600 uppercase mb-2">Location</h4>
+                        <p className="text-gray-900">{viewLead.exact_location}</p>
+                        {viewLead.latitude && viewLead.longitude && (
+                          <p className="text-xs text-gray-500 mt-2">
+                            GPS: {parseFloat(viewLead.latitude).toFixed(4)}, {parseFloat(viewLead.longitude).toFixed(4)}
+                          </p>
+                        )}
                       </div>
                     )}
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Exact Location / Address</label>
-                      <textarea value={editLeadForm.exactLocation} onChange={(e) => setEditLeadForm({ ...editLeadForm, exactLocation: e.target.value })} placeholder="Enter detailed address..." rows={3} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all resize-none" />
+
+                    {/* Project Details */}
+                    {viewLead.project_brief && (
+                      <div className="bg-gray-50 p-6 rounded-2xl">
+                        <h4 className="text-sm font-bold text-gray-600 uppercase mb-2">Project Brief</h4>
+                        <p className="text-gray-900">{viewLead.project_brief}</p>
+                      </div>
+                    )}
+
+                    {/* Lost Reason */}
+                    {viewLead.status === "LOST" && viewLead.lost_reason && (
+                      <div className="bg-red-50 p-6 rounded-2xl border-2 border-red-100">
+                        <h4 className="text-sm font-bold text-red-600 uppercase mb-2">Reason for Lost</h4>
+                        <p className="text-red-900 font-medium">{viewLead.lost_reason}</p>
+                      </div>
+                    )}
+
+                    {/* Status & Payment */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-purple-50 p-4 rounded-2xl">
+                        <p className="text-xs text-gray-500 uppercase">Lead Status</p>
+                        <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(viewLead.status)}`}>
+                          {viewLead.status}
+                        </span>
+                      </div>
+                      <div className="bg-green-50 p-4 rounded-2xl">
+                        <p className="text-xs text-gray-500 uppercase">Payment Status</p>
+                        <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(viewLead.payment_status)}`}>
+                          {viewLead.payment_status}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Payment Details */}
+                    {(viewLead.total_amount > 0 || viewLead.paid_amount > 0) && (
+                      <div className="bg-yellow-50 p-6 rounded-2xl">
+                        <h4 className="text-sm font-bold text-yellow-600 uppercase mb-4">Payment Details</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs text-gray-500">Total Amount</p>
+                            <p className="text-xl font-bold text-gray-900">₹{viewLead.total_amount || 0}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Paid Amount</p>
+                            <p className="text-xl font-bold text-green-600">₹{viewLead.paid_amount || 0}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Agent */}
+                    <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-2xl">
+                      <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold">
+                        {agents.find((a) => a.id === viewLead.agent_id)?.full_name?.charAt(0) || "A"}
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Assigned Agent</p>
+                        <p className="font-bold text-gray-900">
+                          {agents.find((a) => a.id === viewLead.agent_id)?.full_name || "Unknown"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setShowViewLead(false)}
+                      className="w-full py-4 bg-gray-200 text-gray-700 rounded-2xl font-bold hover:bg-gray-300 transition-all"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )
+          }
+
+          {/* Edit Lead Modal - Full form matching agent create lead */}
+          {
+            showEditLead && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  className="bg-white rounded-[2.5rem] p-10 w-full max-w-6xl max-h-[90vh] overflow-y-auto shadow-2xl custom-scrollbar"
+                >
+                  <div className="flex justify-between items-center mb-8">
+                    <h3 className="text-2xl font-black text-gray-900">Edit Lead</h3>
+                    <button onClick={() => setShowEditLead(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                      <FaTimesCircle className="text-2xl text-gray-400" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                    {/* Client Information */}
+                    <div className="space-y-6">
+                      <h4 className="text-sm font-bold text-orange-600 uppercase tracking-wider flex items-center gap-2">
+                        <FaUser /> Client Information
+                      </h4>
+                      <LeadInputField label="Client Name *" value={editLeadForm.clientName} onChange={(e) => setEditLeadForm({ ...editLeadForm, clientName: e.target.value })} placeholder="Enter client name" icon={<FaUser />} />
+                      <LeadInputField label="Phone Number *" value={editLeadForm.clientPhone} onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                        setEditLeadForm({ ...editLeadForm, clientPhone: val });
+                      }} placeholder="Enter phone number" icon={<FaPhone />} />
+                      <LeadInputField label="Email" value={editLeadForm.clientEmail} onChange={(e) => setEditLeadForm({ ...editLeadForm, clientEmail: e.target.value })} placeholder="Enter email (optional)" icon={<FaEnvelope />} type="email" />
+                    </div>
+
+                    {/* Service Details */}
+                    <div className="space-y-6">
+                      <h4 className="text-sm font-bold text-orange-600 uppercase tracking-wider flex items-center gap-2">
+                        <FaFileAlt /> Service Details
+                      </h4>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Service Type *</label>
+                        <select value={editLeadForm.serviceType} onChange={(e) => setEditLeadForm({ ...editLeadForm, serviceType: e.target.value })} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all">
+                          <option value="">Select Service</option>
+                          <option value="MSME Services">MSME Services</option>
+                          <option value="Business Promotions">Business Promotions</option>
+                          <option value="Financial Services">Financial Services</option>
+                          <option value="Digital Marketing">Digital Marketing</option>
+                          <option value="Others">Others</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Project Brief</label>
+                        <textarea value={editLeadForm.projectBrief} onChange={(e) => setEditLeadForm({ ...editLeadForm, projectBrief: e.target.value })} placeholder="Describe the project requirements..." rows={4} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all resize-none" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Lead Status</label>
+                        <select value={editLeadForm.status} onChange={(e) => setEditLeadForm({ ...editLeadForm, status: e.target.value })} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all">
+                          <option value="NEW">New</option>
+                          <option value="CONTACTED">Contacted</option>
+                          <option value="FOLLOW_UP">Follow Up</option>
+                          <option value="WON">Won</option>
+                          <option value="LOST">Lost</option>
+                        </select>
+                      </div>
+
+                      {/* Lost Reason Field */}
+                      {editLeadForm.status === "LOST" && (
+                        <div className="space-y-2 animate-in fade-in slide-in-from-top-4 duration-300">
+                          <label className="text-xs font-bold text-red-600 uppercase tracking-wider">Reason for Lost *</label>
+                          <textarea
+                            value={editLeadForm.lostReason}
+                            onChange={(e) => setEditLeadForm({ ...editLeadForm, lostReason: e.target.value })}
+                            placeholder="Please provide the reason why this lead was lost..."
+                            rows={3}
+                            className="w-full p-4 bg-red-50 border-2 border-red-100 rounded-2xl focus:border-red-500 focus:bg-white outline-none transition-all resize-none text-red-900 placeholder:text-red-300"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Location */}
+                    <div className="space-y-6">
+                      <h4 className="text-sm font-bold text-orange-600 uppercase tracking-wider flex items-center gap-2">
+                        <FaMapMarkerAlt /> Location
+                      </h4>
+                      <button onClick={captureEditLeadGPS} disabled={editLeadGpsLoading} className="w-full py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all flex items-center justify-center gap-2 disabled:opacity-70">
+                        {editLeadGpsLoading ? <FaSpinner className="animate-spin" /> : <FaMapPin />}
+                        {editLeadGpsLoading ? "Capturing..." : "Capture GPS Location"}
+                      </button>
+                      {editLeadForm.latitude && editLeadForm.longitude && (
+                        <div className="p-3 bg-green-50 rounded-xl text-sm">
+                          <p className="font-bold text-green-800">GPS Captured!</p>
+                          <p className="text-green-600">Lat: {editLeadForm.latitude}</p>
+                          <p className="text-green-600">Long: {editLeadForm.longitude}</p>
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Exact Location / Address</label>
+                        <textarea value={editLeadForm.exactLocation} onChange={(e) => setEditLeadForm({ ...editLeadForm, exactLocation: e.target.value })} placeholder="Enter detailed address..." rows={3} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all resize-none" />
+                      </div>
+                    </div>
+
+                    {/* Payment Information */}
+                    <div className="space-y-6 lg:col-span-3">
+                      <h4 className="text-sm font-bold text-orange-600 uppercase tracking-wider flex items-center gap-2">
+                        <FaMoneyBill /> Payment Information
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Payment Status</label>
+                          <select value={editLeadForm.paymentStatus} onChange={(e) => setEditLeadForm({ ...editLeadForm, paymentStatus: e.target.value })} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all">
+                            <option value="PENDING">Pending</option>
+                            <option value="PARTIAL">Partial</option>
+                            <option value="COMPLETED">Completed</option>
+                          </select>
+                        </div>
+                        <LeadInputField label="Total Amount (₹)" value={editLeadForm.totalAmount} onChange={(e) => setEditLeadForm({ ...editLeadForm, totalAmount: e.target.value })} placeholder="0.00" icon={<FaMoneyBill />} type="number" />
+                        <LeadInputField label="Paid Amount (₹)" value={editLeadForm.paidAmount} onChange={(e) => setEditLeadForm({ ...editLeadForm, paidAmount: e.target.value })} placeholder="0.00" icon={<FaCheckCircle />} type="number" />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Payment Method</label>
+                          <select value={editLeadForm.paymentMethod} onChange={(e) => setEditLeadForm({ ...editLeadForm, paymentMethod: e.target.value })} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all">
+                            <option value="">Select Method</option>
+                            <option value="CASH">Cash</option>
+                            <option value="UPI">UPI</option>
+                            <option value="BANK_TRANSFER">Bank Transfer</option>
+                            <option value="CHEQUE">Cheque</option>
+                            <option value="CARD">Card</option>
+                            <option value="OTHER">Other</option>
+                          </select>
+                        </div>
+                        <LeadInputField label="Transaction ID / Receipt #" value={editLeadForm.transactionId} onChange={(e) => setEditLeadForm({ ...editLeadForm, transactionId: e.target.value })} placeholder="Enter transaction reference" icon={<FaReceipt />} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Payment Notes</label>
+                        <textarea value={editLeadForm.paymentNotes} onChange={(e) => setEditLeadForm({ ...editLeadForm, paymentNotes: e.target.value })} placeholder="Any additional payment details..." rows={2} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all resize-none" />
+                      </div>
                     </div>
                   </div>
 
-                  {/* Payment Information */}
-                  <div className="space-y-6 lg:col-span-3">
-                    <h4 className="text-sm font-bold text-orange-600 uppercase tracking-wider flex items-center gap-2">
-                      <FaMoneyBill /> Payment Information
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Payment Status</label>
-                        <select value={editLeadForm.paymentStatus} onChange={(e) => setEditLeadForm({ ...editLeadForm, paymentStatus: e.target.value })} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all">
-                          <option value="PENDING">Pending</option>
-                          <option value="PARTIAL">Partial</option>
-                          <option value="COMPLETED">Completed</option>
-                        </select>
-                      </div>
-                      <LeadInputField label="Total Amount (₹)" value={editLeadForm.totalAmount} onChange={(e) => setEditLeadForm({ ...editLeadForm, totalAmount: e.target.value })} placeholder="0.00" icon={<FaMoneyBill />} type="number" />
-                      <LeadInputField label="Paid Amount (₹)" value={editLeadForm.paidAmount} onChange={(e) => setEditLeadForm({ ...editLeadForm, paidAmount: e.target.value })} placeholder="0.00" icon={<FaCheckCircle />} type="number" />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Payment Method</label>
-                        <select value={editLeadForm.paymentMethod} onChange={(e) => setEditLeadForm({ ...editLeadForm, paymentMethod: e.target.value })} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all">
-                          <option value="">Select Method</option>
-                          <option value="CASH">Cash</option>
-                          <option value="UPI">UPI</option>
-                          <option value="BANK_TRANSFER">Bank Transfer</option>
-                          <option value="CHEQUE">Cheque</option>
-                          <option value="CARD">Card</option>
-                          <option value="OTHER">Other</option>
-                        </select>
-                      </div>
-                      <LeadInputField label="Transaction ID / Receipt #" value={editLeadForm.transactionId} onChange={(e) => setEditLeadForm({ ...editLeadForm, transactionId: e.target.value })} placeholder="Enter transaction reference" icon={<FaReceipt />} />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Payment Notes</label>
-                      <textarea value={editLeadForm.paymentNotes} onChange={(e) => setEditLeadForm({ ...editLeadForm, paymentNotes: e.target.value })} placeholder="Any additional payment details..." rows={2} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all resize-none" />
-                    </div>
+                  <div className="flex gap-4 mt-12 pt-6 border-t border-gray-100">
+                    <button onClick={updateLead} disabled={loading} className="flex-1 py-5 bg-orange-600 text-white rounded-2xl font-black shadow-lg shadow-orange-200 hover:bg-orange-700 transition-all disabled:opacity-70 flex items-center justify-center gap-3 text-lg">
+                      {loading ? <FaSpinner className="animate-spin" /> : <FaCheckCircle />}
+                      {loading ? "Updating..." : "Update Lead Details"}
+                    </button>
+                    <button onClick={() => setShowEditLead(false)} className="px-10 py-5 bg-gray-100 text-gray-500 rounded-2xl font-black hover:bg-gray-200 transition-all text-lg">
+                      Cancel
+                    </button>
                   </div>
-                </div>
+                </motion.div>
+              </div>
+            )
+          }
+        </div >
+      </div >
 
-                <div className="flex gap-4 mt-12 pt-6 border-t border-gray-100">
-                  <button onClick={updateLead} disabled={loading} className="flex-1 py-5 bg-orange-600 text-white rounded-2xl font-black shadow-lg shadow-orange-200 hover:bg-orange-700 transition-all disabled:opacity-70 flex items-center justify-center gap-3 text-lg">
-                    {loading ? <FaSpinner className="animate-spin" /> : <FaCheckCircle />}
-                    {loading ? "Updating..." : "Update Lead Details"}
-                  </button>
-                  <button onClick={() => setShowEditLead(false)} className="px-10 py-5 bg-gray-100 text-gray-500 rounded-2xl font-black hover:bg-gray-200 transition-all text-lg">
-                    Cancel
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </div>
-      </div>
-
-    </div>
+    </div >
   );
 }
 
 // Stat Card Component
 function StatCard({ icon, label, value, color }) {
   return (
-    <div className="bg-white/90 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-white">
-      <div className={`w-12 h-12 ${color} rounded-xl flex items-center justify-center text-white text-xl mb-4`}>
+    <div className="bg-white/90 backdrop-blur-md p-3 md:p-4 rounded-2xl shadow-lg border border-white stat-card">
+      <div className={`w-8 h-8 md:w-10 md:h-10 ${color} rounded-xl flex items-center justify-center text-white text-base md:text-lg mb-1.5 md:mb-2`}>
         {icon}
       </div>
-      <div className="text-3xl font-black text-gray-900">{value}</div>
-      <div className="text-sm text-gray-500 font-medium">{label}</div>
+      <div className="text-lg md:text-xl font-black text-gray-900">{value}</div>
+      <div className="text-[9px] md:text-[10px] text-gray-500 font-bold uppercase tracking-wider leading-tight">{label}</div>
     </div>
   );
 }

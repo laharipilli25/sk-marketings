@@ -16,6 +16,7 @@ import {
 
 import bgUser from "../assets/bguser.jpg";
 import skLogo from "../assets/sklogo.png";
+import SEO from "../components/SEO";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -29,15 +30,13 @@ export default function UserSignup() {
     alternatePhone: "",
     state_id: "",
     district_id: "",
-    mandal: "",
+    mandal_id: "",
     village: "",
     aadharNumber: "",
     password: "",
-    pincode: "",
   });
 
   const [mandalSuggestions, setMandalSuggestions] = useState([]);
-  const [pincodeLoading, setPincodeLoading] = useState(false);
 
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -50,6 +49,7 @@ export default function UserSignup() {
 
   const [states, setStates] = useState([]);
   const [districts, setDistricts] = useState([]);
+  const [mandals, setMandals] = useState([]);
 
   useEffect(() => {
     fetchStates();
@@ -83,6 +83,21 @@ export default function UserSignup() {
     }
   };
 
+  const fetchMandals = async (stateId, districtId) => {
+    try {
+      const response = await fetch(
+        `${API_URL}/auth/mandals/${stateId}/${districtId}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setMandals(data);
+      }
+    } catch (err) {
+      console.error("Error fetching mandals:", err);
+    }
+  };
+
   const handleStateChange = (e) => {
     const stateId = e.target.value;
 
@@ -90,11 +105,14 @@ export default function UserSignup() {
       ...formData,
       state_id: stateId,
       district_id: "",
+      mandal_id: "",
     });
 
     setFieldErrors((prev) => ({
       ...prev,
       state_id: "",
+      district_id: "",
+      mandal_id: "",
     }));
 
     if (stateId) {
@@ -102,49 +120,32 @@ export default function UserSignup() {
     } else {
       setDistricts([]);
     }
+    setMandals([]);
   };
 
-  const handlePincodeChange = async (e) => {
-    const val = e.target.value.replace(/\D/g, "").slice(0, 6);
-    setFormData((prev) => ({ ...prev, pincode: val }));
+  const handleDistrictChange = (e) => {
+    const districtId = e.target.value;
 
-    if (val.length === 6) {
-      setPincodeLoading(true);
-      try {
-        const response = await fetch(`https://api.postalpincode.in/pincode/${val}`);
-        const data = await response.json();
+    setFormData({
+      ...formData,
+      district_id: districtId,
+      mandal_id: "",
+    });
 
-        if (data[0].Status === "Success") {
-          const postOffices = data[0].PostOffice;
-          const apiState = postOffices[0].State;
-          const apiDistrict = postOffices[0].District;
+    setFieldErrors((prev) => ({
+      ...prev,
+      district_id: "",
+      mandal_id: "",
+    }));
 
-          setMandalSuggestions(postOffices.map(po => po.Name));
-
-          // Find and set State
-          const foundState = states.find(s => s.name.toUpperCase() === apiState.toUpperCase());
-          if (foundState) {
-            setFormData(prev => ({ ...prev, state_id: foundState.id }));
-            
-            // Fetch and set District
-            const distResponse = await fetch(`${API_URL}/auth/districts/${foundState.id}`);
-            if (distResponse.ok) {
-              const distData = await distResponse.json();
-              setDistricts(distData);
-              const foundDist = distData.find(d => d.name.toUpperCase() === apiDistrict.toUpperCase());
-              if (foundDist) {
-                setFormData(prev => ({ ...prev, district_id: foundDist.id }));
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Pincode API Error:", err);
-      } finally {
-        setPincodeLoading(false);
-      }
+    if (districtId && formData.state_id) {
+      fetchMandals(formData.state_id, districtId);
+    } else {
+      setMandals([]);
     }
   };
+
+
 
   const handleChange = (e) => {
     let { name, value } = e.target;
@@ -159,8 +160,8 @@ export default function UserSignup() {
       value = value.replace(/\D/g, "").slice(0, 10);
     }
 
-    // MANDAL / VILLAGE
-    if (name === "mandal" || name === "village") {
+    // VILLAGE
+    if (name === "village") {
       value = value.replace(/[^A-Za-z\s]/g, "");
     }
 
@@ -229,9 +230,8 @@ export default function UserSignup() {
     }
 
     // MANDAL
-    if (formData.mandal.trim().length < 2) {
-      errors.mandal =
-        "Mandal must be at least 2 characters";
+    if (!formData.mandal_id) {
+      errors.mandal_id = "Please select mandal";
     }
 
     // VILLAGE
@@ -296,7 +296,7 @@ export default function UserSignup() {
       );
       form.append("state_id", formData.state_id);
       form.append("district_id", formData.district_id);
-      form.append("mandal", formData.mandal);
+      form.append("mandal_id", formData.mandal_id);
       form.append("village", formData.village);
       form.append(
         "aadharNumber",
@@ -337,6 +337,10 @@ export default function UserSignup() {
 
   return (
     <div className="flex h-screen bg-white font-body overflow-hidden">
+      <SEO 
+        title="Agent Registration" 
+        description="Become a certified business consultancy agent with SK Marketings. Onboard clients, capture lead details with GPS coordinates, and facilitate premium MSME services." 
+      />
       {/* LEFT SIDE - BRAND HIGHLIGHTS (Hidden on mobile) */}
       <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden bg-slate-900">
         <div
@@ -512,16 +516,7 @@ export default function UserSignup() {
               <InputField icon={<FaPhoneAlt />} label="Primary Phone" name="phone" placeholder="9876543210" value={formData.phone} onChange={handleChange} error={fieldErrors.phone} />
               <InputField icon={<FaPhoneAlt />} label="Alternate Phone" name="alternatePhone" placeholder="9876543210" value={formData.alternatePhone} onChange={handleChange} error={fieldErrors.alternatePhone} />
 
-              <div className="md:col-span-2">
-                <InputField 
-                  icon={pincodeLoading ? <FaSpinner className="animate-spin" /> : <FaMapMarkerAlt />} 
-                  label="PIN Code" 
-                  name="pincode" 
-                  placeholder="6-digit PIN code" 
-                  value={formData.pincode} 
-                  onChange={handlePincodeChange} 
-                />
-              </div>
+
 
               <SelectField
                 icon={<FaMapMarkerAlt />}
@@ -538,52 +533,34 @@ export default function UserSignup() {
                 label="District"
                 name="district_id"
                 value={formData.district_id}
-                onChange={handleChange}
+                onChange={handleDistrictChange}
                 placeholder="Select District"
                 disabled={!formData.state_id}
                 options={districts.map(d => ({ value: d.id, label: d.name }))}
                 error={fieldErrors.district_id}
               />
 
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Mandal</label>
-                <div className="relative group">
-                  <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-orange-500 transition-colors z-10"><FaMapMarkerAlt /></div>
-                  <input
-                    list="mandal-list"
-                    name="mandal"
-                    required
-                    value={formData.mandal}
-                    onChange={handleChange}
-                    placeholder="Enter mandal"
-                    className={`w-full pl-12 pr-5 py-3 rounded-xl bg-white border-2 focus:border-orange-500 focus:outline-none transition-all font-bold text-sm text-slate-800 placeholder:text-slate-300 shadow-sm ${fieldErrors.mandal ? "border-red-100 bg-red-50/30" : "border-slate-100"}`}
-                  />
-                  <datalist id="mandal-list">
-                    {mandalSuggestions.map((m, i) => <option key={i} value={m} />)}
-                  </datalist>
-                </div>
-                {fieldErrors.mandal && <p className="text-red-500 text-[10px] font-bold ml-2 uppercase tracking-tight">{fieldErrors.mandal}</p>}
-              </div>
+              <SelectField
+                icon={<FaMapMarkerAlt />}
+                label="Mandal"
+                name="mandal_id"
+                value={formData.mandal_id}
+                onChange={handleChange}
+                placeholder="Select Mandal"
+                disabled={!formData.district_id}
+                options={mandals.map(m => ({ value: m.id, label: m.mandal }))}
+                error={fieldErrors.mandal_id}
+              />
 
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Village</label>
-                <div className="relative group">
-                  <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-orange-500 transition-colors z-10"><FaMapMarkerAlt /></div>
-                  <input
-                    list="village-list"
-                    name="village"
-                    required
-                    value={formData.village}
-                    onChange={handleChange}
-                    placeholder="Enter village"
-                    className={`w-full pl-12 pr-5 py-3 rounded-xl bg-white border-2 focus:border-orange-500 focus:outline-none transition-all font-bold text-sm text-slate-800 placeholder:text-slate-300 shadow-sm ${fieldErrors.village ? "border-red-100 bg-red-50/30" : "border-slate-100"}`}
-                  />
-                  <datalist id="village-list">
-                    {mandalSuggestions.map((v, i) => <option key={i} value={v} />)}
-                  </datalist>
-                </div>
-                {fieldErrors.village && <p className="text-red-500 text-[10px] font-bold ml-2 uppercase tracking-tight">{fieldErrors.village}</p>}
-              </div>
+              <InputField
+                icon={<FaMapMarkerAlt />}
+                label="Village"
+                name="village"
+                placeholder="Enter village"
+                value={formData.village}
+                onChange={handleChange}
+                error={fieldErrors.village}
+              />
               <InputField icon={<FaIdCard />} label="Aadhar Number" name="aadharNumber" placeholder="12-digit number" value={formData.aadharNumber} onChange={handleChange} />
               <InputField icon={<FaLock />} label="Password" name="password" type="password" placeholder="••••••••" value={formData.password} onChange={handleChange} error={fieldErrors.password} />
 

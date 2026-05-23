@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaLock, FaSpinner } from "react-icons/fa";
 import bgUser from "../assets/bguser.jpg";
+import SEO from "../components/SEO";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -58,6 +59,10 @@ export default function ResetPassword() {
 
   return (
     <div className="min-h-screen relative flex items-center justify-center pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+      <SEO 
+        title="Reset Password" 
+        description="Establish your new credentials and restore account security for your SK Marketings portal dashboard." 
+      />
       {/* Background Image */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"

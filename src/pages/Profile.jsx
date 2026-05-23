@@ -1,6 +1,8 @@
+import toast from 'react-hot-toast';
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FaUser, FaEnvelope, FaPhone, FaLock, FaCheckCircle, FaSpinner, FaMapMarkerAlt, FaIdCard, FaCamera, FaSave, FaGlobe, FaAddressCard } from "react-icons/fa";
+import SEO from "../components/SEO";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const BASE_URL = API_URL ? API_URL.replace(/\/api\/?$/, "") : "";
@@ -81,28 +83,33 @@ export default function Profile({ onUpdate }) {
     setProfileLoading(true);
     setMessage(null);
     setError(null);
+        toast.error(null);
 
     // Validations
     if (phone && !/^\d{10}$/.test(phone)) {
       setError("Primary phone must be a valid 10-digit number");
+        toast.error("Primary phone must be a valid 10-digit number");
       setProfileLoading(false);
       return;
     }
 
     if (alternatePhone && !/^\d{10}$/.test(alternatePhone)) {
       setError("Alternate phone must be a valid 10-digit number");
+        toast.error("Alternate phone must be a valid 10-digit number");
       setProfileLoading(false);
       return;
     }
 
     if (aadharNumber && !/^\d{12}$/.test(aadharNumber)) {
       setError("Aadhar number must be a valid 12-digit number");
+        toast.error("Aadhar number must be a valid 12-digit number");
       setProfileLoading(false);
       return;
     }
 
     if (user.role === 'ADMIN' && email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setError("Please enter a valid email address");
+        toast.error("Please enter a valid email address");
       setProfileLoading(false);
       return;
     }
@@ -135,6 +142,7 @@ export default function Profile({ onUpdate }) {
       const data = await response.json();
       if (response.ok) {
         setMessage("Profile updated successfully!");
+        toast.success("Profile updated successfully!");
         
         // Map backend response fields for frontend consistency
         const updatedUser = {
@@ -148,9 +156,11 @@ export default function Profile({ onUpdate }) {
         if (onUpdate) onUpdate(updatedUser);
       } else {
         setError(data.message || "Failed to update profile");
+        toast.error(data.message || "Failed to update profile");
       }
     } catch (err) {
       setError("Network error. Please try again.");
+        toast.error("Network error. Please try again.");
     } finally {
       setProfileLoading(false);
     }
@@ -160,16 +170,19 @@ export default function Profile({ onUpdate }) {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
       setError("New passwords do not match");
+        toast.error("New passwords do not match");
       return;
     }
     if (newPassword.length < 6) {
       setError("Password must be at least 6 characters");
+        toast.error("Password must be at least 6 characters");
       return;
     }
 
     setLoading(true);
     setMessage(null);
     setError(null);
+        toast.error(null);
 
     try {
       const token = localStorage.getItem("token");
@@ -185,14 +198,17 @@ export default function Profile({ onUpdate }) {
       const data = await response.json();
       if (response.ok) {
         setMessage("Password updated successfully!");
+        toast.success("Password updated successfully!");
         setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
       } else {
         setError(data.message || "Failed to update password");
+        toast.error(data.message || "Failed to update password");
       }
     } catch (err) {
       setError("Network error. Please try again.");
+        toast.error("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -204,6 +220,10 @@ export default function Profile({ onUpdate }) {
 
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-8">
+      <SEO 
+        title="My Profile" 
+        description="View and update your personal details, location configurations, and login password parameters safely." 
+      />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -239,7 +259,7 @@ export default function Profile({ onUpdate }) {
               </p>
               {user.village && (
                  <p className="text-gray-500 text-sm font-medium mt-1 flex items-center gap-2">
-                   <FaMapMarkerAlt className="text-orange-400" /> {user.village}, {user.mandal}, {user.districtName}, {user.stateName}
+                   <FaMapMarkerAlt className="text-orange-400" /> {user.village}, {user.mandal?.name || user.mandal || 'N/A'}, {user.districtName}, {user.stateName}
                  </p>
               )}
             </div>
@@ -377,7 +397,7 @@ export default function Profile({ onUpdate }) {
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider ml-1">{isAdmin ? 'Your Base Location' : 'Your Assigned Location'}</p>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <DetailItem icon={<FaMapMarkerAlt />} label="Village" value={user.village} />
-                    <DetailItem icon={<FaGlobe />} label="Mandal" value={user.mandal} />
+                    <DetailItem icon={<FaGlobe />} label="Mandal" value={user.mandal?.name || user.mandal || 'N/A'} />
                     <DetailItem icon={<FaIdCard />} label="District" value={user.districtName} />
                     <DetailItem icon={<FaGlobe />} label="State" value={user.stateName} />
                   </div>

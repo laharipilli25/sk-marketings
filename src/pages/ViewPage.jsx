@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
+import SEO from "../components/SEO";
 
 export default function ViewPage() {
   const { id } = useParams();
@@ -10,6 +11,10 @@ export default function ViewPage() {
 
   return (
     <div className="max-w-2xl mx-auto mt-20 p-8 bg-white shadow-2xl rounded-3xl border border-gray-100">
+      <SEO 
+        title={`View Lead: ${item.name || 'Detail'}`} 
+        description={`Detailed record profile for client ${item.name} located in ${item.village || 'Tirupati'}.`} 
+      />
       <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-gray-600 mb-6 flex items-center gap-2">
         ← Back to Dashboard
       </button>

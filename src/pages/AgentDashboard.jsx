@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,6 +26,7 @@ import Profile from "./Profile";
 import Sidebar from "../components/Sidebar";
 import DashboardHeader from "../components/DashboardHeader";
 import Dashboard from "../components/Dashboard";
+import SEO from "../components/SEO";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const BASE_URL = API_URL ? API_URL.replace(/\/api\/?$/, "") : "";
@@ -106,7 +108,7 @@ export default function AgentDashboard() {
   };
 
   useEffect(() => {
-    if (activeTab === "leads" && localStorage.getItem("token")) {
+    if ((activeTab === "leads" || activeTab === "customers") && localStorage.getItem("token")) {
       fetchLeads();
     }
   }, [activeTab]);
@@ -148,12 +150,12 @@ export default function AgentDashboard() {
           setGpsLoading(false);
         },
         (error) => {
-          alert("Unable to capture GPS location. Please enter manually.");
+          toast.error("Unable to capture GPS location. Please enter manually.");
           setGpsLoading(false);
         }
       );
     } else {
-      alert("GPS not supported in this browser.");
+      toast.error("GPS not supported in this browser.");
       setGpsLoading(false);
     }
   };
@@ -181,7 +183,7 @@ export default function AgentDashboard() {
 
   const handleSubmit = async () => {
     if (!form.clientName || !form.clientPhone || !form.serviceType) {
-      alert("Please fill all required fields: Client Name, Phone, Service Type");
+      toast.error("Please fill all required fields: Client Name, Phone, Service Type");
       return;
     }
 
@@ -203,16 +205,16 @@ export default function AgentDashboard() {
       });
 
       if (response.ok) {
-        alert(editingLead ? "Lead updated successfully!" : "Lead created successfully!");
+        toast.success(editingLead ? "Lead updated successfully!" : "Lead created successfully!");
         resetForm();
         setActiveTab("leads");
         fetchLeads();
       } else {
         const data = await response.json();
-        alert(data.message || "Failed to save lead");
+        toast.error(data.message || "Failed to save lead");
       }
     } catch (error) {
-      alert("Network error. Please try again.");
+      toast.error("Network error. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -252,12 +254,13 @@ export default function AgentDashboard() {
       });
 
       if (response.ok) {
+        toast.success("Lead deleted successfully!");
         fetchLeads();
       } else {
-        alert("Failed to delete lead");
+        toast.error("Failed to delete lead");
       }
     } catch (error) {
-      alert("Network error");
+      toast.error("Network error");
     }
   };
 
@@ -283,6 +286,10 @@ export default function AgentDashboard() {
 
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden">
+      <SEO 
+        title="Agent Dashboard" 
+        description="Access your certified SK Marketings consultant dashboard. Log new client entries, update MSME payments, capture GPS coordinate verification, and monitor commissions." 
+      />
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -292,7 +299,7 @@ export default function AgentDashboard() {
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <DashboardHeader
-          title={activeTab === 'leads' ? 'My Leads' : activeTab === 'create' ? 'Create New Lead' : 'My Profile'}
+          title={activeTab === 'leads' ? 'My Leads' : activeTab === 'customers' ? 'My Customers' : activeTab === 'create' ? 'Create New Lead' : 'My Profile'}
           onMenuClick={() => toggleSidebar(true)}
           setActiveTab={setActiveTab}
         />
@@ -326,6 +333,15 @@ export default function AgentDashboard() {
                 }`}
             >
               My Leads ({leads.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("customers")}
+              className={`px-4 py-2 rounded-lg font-bold transition-all text-[10px] ${activeTab === "customers"
+                ? "bg-orange-600 text-white shadow-md shadow-orange-100"
+                : "bg-white text-gray-600 hover:bg-gray-50 shadow-sm border border-gray-100"
+                }`}
+            >
+              My Customers ({leads.filter(l => l.status === 'WON').length})
             </button>
             <button
               onClick={() => setActiveTab("create")}
@@ -482,6 +498,145 @@ export default function AgentDashboard() {
               )}
             </div>
           )}
+
+          {/* Customers Tab */}
+          {activeTab === "customers" && (() => {
+            const customers = leads.filter(l => l.status === 'WON');
+            const totalRevenue = customers.reduce((sum, c) => sum + (parseFloat(c.paid_amount) || 0), 0);
+            const completedPayments = customers.filter(c => c.payment_status === 'COMPLETED').length;
+            const pendingPayments = customers.filter(c => c.payment_status !== 'COMPLETED').length;
+
+            return (
+              <div className="space-y-6">
+                {/* Customer Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-md border border-white">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Customers</p>
+                    <p className="text-2xl font-black text-gray-900">{customers.length}</p>
+                  </div>
+                  <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-md border border-white">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Revenue</p>
+                    <p className="text-2xl font-black text-green-600">₹{totalRevenue.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-md border border-white">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Completed Payments</p>
+                    <p className="text-2xl font-black text-green-600">{completedPayments}</p>
+                  </div>
+                  <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-md border border-white">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending Payments</p>
+                    <p className="text-2xl font-black text-orange-600">{pendingPayments}</p>
+                  </div>
+                </div>
+
+                {loading ? (
+                  <div className="text-center py-20">
+                    <FaSpinner className="animate-spin text-4xl text-orange-500 mx-auto mb-4" />
+                    <p className="text-gray-600">Loading customers...</p>
+                  </div>
+                ) : customers.length === 0 ? (
+                  <div className="text-center py-20 bg-white/70 backdrop-blur-sm rounded-[2rem] border-2 border-dashed border-orange-200">
+                    <p className="text-gray-500 font-bold text-lg mb-4">No customers yet</p>
+                    <p className="text-gray-400 text-sm">Convert leads by marking them as WON!</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {customers.map((lead) => (
+                      <motion.div
+                        key={lead.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        onClick={() => setSelectedLead(lead)}
+                        className="bg-white/90 backdrop-blur-md p-6 rounded-[2rem] shadow-xl border border-white hover:shadow-2xl hover:border-orange-300 transition-all cursor-pointer group"
+                      >
+                        {/* Customer Header */}
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                              {lead.id}
+                            </span>
+                            <h3 className="text-xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors">{lead.client_name}</h3>
+                          </div>
+                          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => setSelectedLead(lead)}
+                              className="p-2 text-orange-600 bg-orange-50 rounded-lg hover:bg-orange-600 hover:text-white transition-all"
+                            >
+                              <FaEye size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleEdit(lead)}
+                              className="p-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-600 hover:text-white transition-all"
+                            >
+                              <FaEdit size={14} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Client Info */}
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-center gap-2 text-sm">
+                            <FaPhone className="text-orange-500" />
+                            <span className="font-medium">{lead.client_phone}</span>
+                          </div>
+                          {lead.client_email && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <FaEnvelope className="text-orange-500" />
+                              <span className="font-medium">{lead.client_email}</span>
+                            </div>
+                          )}
+                          {lead.exact_location && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <FaMapMarkerAlt className="text-orange-500" />
+                              <span className="font-medium text-gray-600">{lead.exact_location}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Service Type */}
+                        <div className="mb-4">
+                          <span className="inline-block px-3 py-1 bg-orange-50 text-orange-600 rounded-lg text-xs font-bold">
+                            {lead.service_type}
+                          </span>
+                        </div>
+
+                        {/* Status Badges */}
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          <span className={`px-3 py-1 rounded-lg text-xs font-bold ${getStatusColor(lead.status)}`}>
+                            {lead.status}
+                          </span>
+                          <span className={`px-3 py-1 rounded-lg text-xs font-bold ${getPaymentStatusColor(lead.payment_status)}`}>
+                            Payment: {lead.payment_status}
+                          </span>
+                        </div>
+
+                        {/* Payment Info */}
+                        {(lead.total_amount || lead.paid_amount) && (
+                          <div className="bg-gray-50 p-3 rounded-xl mb-4">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">Total:</span>
+                              <span className="font-bold">₹{lead.total_amount || 0}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">Paid:</span>
+                              <span className="font-bold text-green-600">₹{lead.paid_amount || 0}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* GPS Location */}
+                        {lead.latitude && lead.longitude && (
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <FaMapPin className="text-green-500" />
+                            <span>GPS: {parseFloat(lead.latitude).toFixed(4)}, {parseFloat(lead.longitude).toFixed(4)}</span>
+                          </div>
+                        )}
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Create/Edit Lead Tab */}
           {activeTab === "create" && (
@@ -851,10 +1006,10 @@ function LeadDetailModal({ lead, onClose, onEdit, getStatusColor, getPaymentStat
               <div>
                 <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Financial Overview</h4>
                 {/* Lost Reason */}
-                {selectedLead.status === "LOST" && selectedLead.lost_reason && (
+                {lead.status === "LOST" && lead.lost_reason && (
                   <div className="p-4 bg-red-50 rounded-xl border border-red-100">
                     <p className="text-xs font-bold text-red-600 uppercase mb-1">Reason for Lost</p>
-                    <p className="text-gray-900 text-sm">{selectedLead.lost_reason}</p>
+                    <p className="text-gray-900 text-sm">{lead.lost_reason}</p>
                   </div>
                 )}
 
