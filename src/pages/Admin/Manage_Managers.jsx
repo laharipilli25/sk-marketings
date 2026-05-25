@@ -303,24 +303,36 @@ export default function ManageManagers() {
   // ── Exports ───────────────────────────────────────────────────────────────
   const handleExportExcel = () => {
     const data = allManagers.map(m => ({
-      ID: m.id, Name: m.full_name, Email: m.email, Phone: m.phone,
-      State: m.state?.name || "N/A", District: m.district?.name || "N/A",
-      Mandal: m.mandal?.name || "N/A", Village: m.village || "N/A",
+      "Manager ID": m.id,
+      "Full Name": m.full_name,
+      "Email Address": m.email,
+      "Phone Number": m.phone,
+      "Alternate Phone": m.alternate_phone || "N/A",
+      "Aadhar Number": m.aadhar_number || "N/A",
+      "State": m.state?.name || "N/A",
+      "District": m.district?.name || "N/A",
+      "Mandal": m.mandal?.name || m.mandal || "N/A",
+      "Village": m.village || "N/A",
       "Assigned Agents": managerCounts[m.id] ?? m.assignedAgentsCount ?? 0,
-      Status: m.status,
+      "Manager Status": m.status,
+      "Joined Date": new Date(m.created_at).toLocaleDateString()
     }));
-    exportToExcel(data, `Managers_Export_${new Date().toISOString().split("T")[0]}`);
+    exportToExcel(data, `Managers_Detailed_Export_${new Date().toISOString().split("T")[0]}`);
   };
-
   const handleExportPDF = () => {
-    const headers = ["Name", "Phone", "Location", "Assigned Agents", "Status"];
+    const headers = ["Name", "Email", "Phone", "Alt Phone", "Aadhar", "Location", "Assigned Agents", "Status", "Joined"];
     const data = allManagers.map(m => [
-      m.full_name, m.phone,
-      `${m.district?.name || "N/A"}, ${m.state?.name || "N/A"}`,
+      m.full_name,
+      m.email,
+      m.phone,
+      m.alternate_phone || "N/A",
+      m.aadhar_number || "N/A",
+      `${m.mandal?.name || m.mandal || "N/A"}, ${m.district?.name || "N/A"}`,
       managerCounts[m.id] ?? m.assignedAgentsCount ?? 0,
       m.status,
+      new Date(m.created_at).toLocaleDateString()
     ]);
-    exportToPDF(headers, data, `Managers_Export_${new Date().toISOString().split("T")[0]}`, "Managers Report");
+    exportToPDF(headers, data, `Managers_Detailed_Export_${new Date().toISOString().split("T")[0]}`, "Managers Detailed Report");
   };
 
   // ── Derived ───────────────────────────────────────────────────────────────

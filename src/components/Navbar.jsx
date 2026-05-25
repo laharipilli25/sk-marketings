@@ -57,16 +57,16 @@ function Navbar() {
           </div>
         </Link>
 
-        {/* DESKTOP NAV */}
         <nav className="hidden md:flex items-center gap-2">
           {navLinks.map((link) => (
             <Link
               key={link.path}
               to={link.path}
-              className={`px-3 py-2 text-sm font-bold transition-all ${location.pathname === link.path
-                ? scrolled ? 'text-orange-500 rounded-lg' : 'text-white border-b-2 border-white'
-                : scrolled ? 'text-slate-700 hover:text-orange-500 rounded-lg' : 'text-white/90 hover:text-orange-400 rounded-lg'
-                }`}
+              className={`text-sm font-bold transition-all ${
+                location.pathname === link.path
+                  ? scrolled ? 'bg-orange-500 text-white px-4 py-1.5 rounded-md shadow-md font-black shadow-orange-100' : 'bg-white/20 backdrop-blur-md text-white px-4 py-1.5 rounded-md border border-white/35 font-black shadow-lg'
+                  : scrolled ? 'px-3 py-2 text-slate-700 hover:text-orange-500' : 'px-3 py-2 text-white/90 hover:text-orange-400'
+              }`}
             >
               {link.label}
             </Link>

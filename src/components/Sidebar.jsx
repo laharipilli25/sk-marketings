@@ -28,7 +28,7 @@ const ADMIN_MODULES = [
 const AGENT_MODULES = [
   { id: "dashboard", label: "Dashboard", icon: <FaChartPie /> },
   { id: "leads", label: "My Leads", icon: <FaClipboardList /> },
-  { id: "customers", label: "My Customers", icon: <FaUserCheck /> },
+  // { id: "customers", label: "My Customers", icon: <FaUserCheck /> },
 ];
 
 const MANAGER_MODULES = [

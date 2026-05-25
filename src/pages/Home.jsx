@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   FaArrowRight, FaChartLine, FaBullhorn, FaLandmark, FaSearchDollar,
@@ -9,49 +10,125 @@ import { HiLightningBolt, HiShieldCheck, HiTrendingUp } from 'react-icons/hi'
 import SEO from '../components/SEO'
 import { slideLeft, slideRight, staggerContainer, staggerItem, pageTransition } from '../utils/animations'
 
-/* ─── 3D Rotating Cube Component ─────────── */
-const BusinessCube = () => {
-  const faces = [
-    "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=800&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=800&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?q=80&w=800&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=800&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=800&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1556761175-b413da4baf72?q=80&w=800&auto=format&fit=crop",
+/* ─── Hero Poster Slider Component ─────────── */
+const HeroPosterSlider = () => {
+  const slides = [
+    {
+      image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=1000&auto=format&fit=crop",
+      title: "Business Growth",
+      subtitle: "Accelerate your local enterprise to global heights"
+    },
+    {
+      image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1000&auto=format&fit=crop",
+      title: "Digital Leadership",
+      subtitle: "Innovative promotions and strategic branding"
+    },
+    {
+      image: "https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=1000&auto=format&fit=crop",
+      title: "Financial Planning",
+      subtitle: "Expert advice and seamless loan facilitation"
+    },
+    {
+      image: "https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=1000&auto=format&fit=crop",
+      title: "Trusted Consultancy",
+      subtitle: "End-to-end MSME & business registration support"
+    }
   ];
 
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % slides.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [slides.length]);
+
   return (
-    <div className="relative w-64 h-64 sm:w-80 sm:h-80 [perspective:1000px] flex items-center justify-center z-10">
-      <motion.div
-        className="w-full h-full relative [transform-style:preserve-3d]"
-        animate={{ rotateY: 360, rotateX: [0, 15, 0] }}
-        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-      >
-        {faces.map((img, i) => {
-          const rotations = [
-            "rotateY(0deg) translateZ(128px)",
-            "rotateY(90deg) translateZ(128px)",
-            "rotateY(180deg) translateZ(128px)",
-            "rotateY(-90deg) translateZ(128px)",
-            "rotateX(90deg) translateZ(128px)",
-            "rotateX(-90deg) translateZ(128px)"
-          ];
-          return (
-            <div
-              key={i}
-              className="absolute inset-0 border-2 border-orange-400 shadow-2xl bg-white overflow-hidden rounded-lg"
-              style={{ transform: rotations[i], backfaceVisibility: 'hidden' }}
-            >
-              <img
-                src={img}
-                alt="business collaboration"
-                className="w-full h-full object-cover object-center grayscale-[20%] transition-all duration-500"
+    <div
+      className="
+        relative
+        w-full
+        max-w-md
+        aspect-[4/5]
+        rounded-[2.5rem]
+        overflow-hidden
+        border-3
+        border-white
+        bg-slate-900
+        shadow-[0_20px_50px_rgba(249,115,22,0.15)]
+        transition-all
+        duration-500
+        ease-in-out
+        group
+      "
+    >
+      <AnimatePresence>
+        <motion.div
+          key={currentIndex}
+          initial={{ opacity: 0, scale: 1.03 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.6, ease: "easeInOut" }}
+          className="absolute inset-0 w-full h-full"
+        >
+          <img
+            src={slides[currentIndex].image}
+            alt={slides[currentIndex].title}
+            className="w-full h-full object-cover"
+          />
+          {/* Elegant Dark Vignette Overlay for Readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10" />
+
+          {/* Frosted Glass Floating Caption */}
+          <div className="absolute bottom-8 left-6 right-6 p-6 rounded-3xl bg-white/10 backdrop-blur-md border border-white/20 text-white shadow-xl flex flex-col gap-2">
+            <span className="text-[10px] font-black text-orange-400 tracking-widest uppercase">
+              SK Marketings • Poster Series
+            </span>
+            <h3 className="text-xl font-black tracking-tight leading-tight">
+              {slides[currentIndex].title}
+            </h3>
+            <p className="text-xs text-white/80 font-medium leading-relaxed">
+              {slides[currentIndex].subtitle}
+            </p>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Slide Indicator Lines at the Top */}
+      <div className="absolute top-6 left-6 right-6 flex gap-2 z-30">
+        {slides.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => setCurrentIndex(index)}
+            className="h-1 flex-1 rounded-full transition-all duration-300 relative overflow-hidden bg-white/30"
+          >
+            {index === currentIndex && (
+              <motion.div
+                layoutId="activeBar"
+                className="absolute inset-0 bg-gradient-to-r from-orange-400 to-orange-500 rounded-full"
+                transition={{ duration: 0.3 }}
               />
-              <div className="absolute inset-0 bg-orange-500/5" />
-            </div>
-          );
-        })}
-      </motion.div>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Premium subtle next/prev arrows that fade in on hover */}
+      <div className="absolute top-1/2 -translate-y-1/2 left-4 right-4 flex justify-between z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+        <button
+          onClick={() => setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length)}
+          className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/35 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white font-bold transition-all shadow-md active:scale-95 pointer-events-auto"
+        >
+          &larr;
+        </button>
+        <button
+          onClick={() => setCurrentIndex((prev) => (prev + 1) % slides.length)}
+          className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/35 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white font-bold transition-all shadow-md active:scale-95 pointer-events-auto"
+        >
+          &rarr;
+        </button>
+      </div>
     </div>
   );
 };
@@ -158,7 +235,7 @@ function Home() {
               animate={{ opacity: 1, scale: 1 }}
               className="flex justify-center lg:justify-end drop-shadow-[0_20px_50px_rgba(249,115,22,0.25)] relative z-20"
             >
-              <BusinessCube />
+              <HeroPosterSlider />
             </motion.div>
           </div>
         </div>

@@ -514,64 +514,92 @@ export default function ManagerDashboard() {
 
   // Export Tools
   const handleExportLeadsExcel = () => {
-    const exportData = leads.map(l => ({
-      ID: l.id,
-      ClientName: l.client_name,
-      ClientPhone: l.client_phone,
-      ClientEmail: l.client_email || 'N/A',
-      Service: l.service_type,
-      Status: l.status,
-      PaymentStatus: l.payment_status,
-      PaidAmount: l.paid_amount || 0,
-      TotalAmount: l.total_amount || 0,
-      Date: new Date(l.created_at).toLocaleDateString()
-    }));
-    exportToExcel(exportData, `Manager_Leads_${new Date().toISOString().split('T')[0]}`);
+    const exportData = leads.map(l => {
+      const agentObj = agents.find(a => a.id === l.agent_id);
+      return {
+        "Lead ID": l.id,
+        "Created Date": new Date(l.created_at).toLocaleDateString(),
+        "Client Name": l.client_name,
+        "Client Phone": l.client_phone,
+        "Client Email": l.client_email || 'N/A',
+        "Service Required": l.service_type || 'N/A',
+        "Lead Status": l.status,
+        "Payment Status": l.payment_status,
+        "Total Amount": l.total_amount || 0,
+        "Paid Amount": l.paid_amount || 0,
+        "Payment Method": l.payment_method || 'N/A',
+        "Transaction ID": l.transaction_id || 'N/A',
+        "Payment Notes": l.payment_notes || 'N/A',
+        "Project Brief": l.project_brief || 'N/A',
+        "Lost Reason": l.lost_reason || 'N/A',
+        "Exact Location": l.exact_location || 'N/A',
+        "Latitude": l.latitude || 'N/A',
+        "Longitude": l.longitude || 'N/A',
+        "Assigned Agent": agentObj?.full_name || 'N/A',
+        "Agent Email": agentObj?.email || 'N/A',
+        "Agent Phone": agentObj?.phone || 'N/A'
+      };
+    });
+    exportToExcel(exportData, `Manager_Leads_Detailed_Export_${new Date().toISOString().split('T')[0]}`);
   };
 
   const handleExportLeadsPDF = () => {
-    const headers = ['Client', 'Phone', 'Service', 'Status', 'Payment', 'Amount', 'Date'];
-    const data = leads.map(l => [
-      l.client_name,
-      l.client_phone,
-      l.service_type,
-      l.status,
-      l.payment_status,
-      `₹${l.paid_amount || 0} / ₹${l.total_amount || 0}`,
-      new Date(l.created_at).toLocaleDateString()
-    ]);
-    exportToPDF(headers, data, `Manager_Leads_${new Date().toISOString().split('T')[0]}`, 'My Area Leads Report');
+    const headers = ['ID', 'Date', 'Client', 'Phone', 'Service', 'Status', 'Payment', 'Total/Paid', 'Agent', 'Location', 'Brief'];
+    const data = leads.map(l => {
+      const agentObj = agents.find(a => a.id === l.agent_id);
+      return [
+        l.id,
+        new Date(l.created_at).toLocaleDateString(),
+        l.client_name,
+        l.client_phone,
+        l.service_type || 'N/A',
+        l.status,
+        l.payment_status,
+        `₹${l.total_amount || 0} / ₹${l.paid_amount || 0}`,
+        agentObj?.full_name || 'N/A',
+        l.exact_location || 'N/A',
+        l.project_brief ? (l.project_brief.length > 30 ? l.project_brief.substring(0, 30) + '...' : l.project_brief) : 'N/A'
+      ];
+    });
+    exportToPDF(headers, data, `Manager_Leads_Detailed_Export_${new Date().toISOString().split('T')[0]}`, 'My Area Leads Detailed Report');
   };
 
   const handleExportAgentsExcel = () => {
     const exportData = agents.map(a => ({
-      ID: a.id,
-      Name: a.full_name,
-      Email: a.email,
-      Phone: a.phone,
-      District: a.district?.name || 'N/A',
-      Mandal: a.mandal?.name || 'N/A',
-      Village: a.village || 'N/A',
-      Leads: leads.filter(l => l.agent_id == a.id).length,
-      Won: leads.filter(l => l.agent_id == a.id && l.status === 'WON').length,
-      Revenue: leads.filter(l => l.agent_id == a.id).reduce((sum, l) => sum + (parseFloat(l.paid_amount) || 0), 0),
-      Status: a.status
+      "Agent ID": a.id,
+      "Full Name": a.full_name,
+      "Email Address": a.email,
+      "Phone Number": a.phone,
+      "Alternate Phone": a.alternate_phone || 'N/A',
+      "Aadhar Number": a.aadhar_number || 'N/A',
+      "State": a.state?.name || 'N/A',
+      "District": a.district?.name || 'N/A',
+      "Mandal": a.mandal?.name || a.mandal || 'N/A',
+      "Village": a.village || 'N/A',
+      "Total Leads": leads.filter(l => l.agent_id == a.id).length,
+      "Won Leads": leads.filter(l => l.agent_id == a.id && l.status === 'WON').length,
+      "Revenue Generated": leads.filter(l => l.agent_id == a.id).reduce((sum, l) => sum + (parseFloat(l.paid_amount) || 0), 0),
+      "Agent Status": a.status,
+      "Joined Date": new Date(a.created_at).toLocaleDateString()
     }));
-    exportToExcel(exportData, `Manager_Agents_${new Date().toISOString().split('T')[0]}`);
+    exportToExcel(exportData, `Manager_Agents_Detailed_Export_${new Date().toISOString().split('T')[0]}`);
   };
 
   const handleExportAgentsPDF = () => {
-    const headers = ['Name', 'Phone', 'District', 'Leads', 'Won', 'Revenue', 'Status'];
+    const headers = ['Name', 'Email', 'Phone', 'Alt Phone', 'Aadhar', 'Location', 'Leads (Won)', 'Revenue', 'Status', 'Joined'];
     const data = agents.map(a => [
       a.full_name,
+      a.email,
       a.phone,
-      a.district?.name || 'N/A',
-      leads.filter(l => l.agent_id == a.id).length,
-      leads.filter(l => l.agent_id == a.id && l.status === 'WON').length,
+      a.alternate_phone || 'N/A',
+      a.aadhar_number || 'N/A',
+      `${a.mandal?.name || a.mandal || 'N/A'}, ${a.district?.name || 'N/A'}`,
+      `${leads.filter(l => l.agent_id == a.id).length} (${leads.filter(l => l.agent_id == a.id && l.status === 'WON').length})`,
       `₹${leads.filter(l => l.agent_id == a.id).reduce((sum, l) => sum + (parseFloat(l.paid_amount) || 0), 0).toLocaleString()}`,
-      a.status
+      a.status,
+      new Date(a.created_at).toLocaleDateString()
     ]);
-    exportToPDF(headers, data, `Manager_Agents_${new Date().toISOString().split('T')[0]}`, 'My Agents Performance Report');
+    exportToPDF(headers, data, `Manager_Agents_Detailed_Export_${new Date().toISOString().split('T')[0]}`, 'My Agents Detailed Performance Report');
   };
 
   // Helper colors

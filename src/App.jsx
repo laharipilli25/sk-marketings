@@ -35,8 +35,8 @@ function App() {
     <>
       <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
       <Layout>
-        <AnimatePresence mode="wait">
-          <Routes location={location} key={location.pathname}>
+        <AnimatePresence>
+          <Routes location={location}>
             <Route path="/" element={<Home />} />
             <Route path="/about" element={<About />} />
             <Route path="/services" element={<Services />} />

@@ -44,7 +44,14 @@ const contactDetails = [
 const API_URL = import.meta.env.VITE_API_URL; // SK Marketings Backend
 
 function Contact() {
-  const [form, setForm] = useState({ name: '', phone: '', email: '', service: '', message: '', location: '' })
+  const [form, setForm] = useState({
+     name: '',
+     phone: '',
+     email: '',
+     service: '',
+     message: '', 
+     location: ''
+         })
   const [errors, setErrors] = useState({})
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -219,10 +226,18 @@ function Contact() {
                             className={`w-full border-2 ${errors.phone ? 'border-red-200 bg-red-50' : 'border-gray-50 bg-gray-50'} rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-500 focus:bg-white transition-all font-medium`} />
                         </div>
                       </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <label className="text-[12px] font-black text-orange-600 uppercase tracking-widest ml-1">Location</label>
                         <input type="text" name="location" value={form.location} onChange={handleChange} placeholder="Your City / Location"
                           className="w-full border-2 border-gray-50 bg-gray-50 rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-500 focus:bg-white transition-all font-medium" />
+                      </div>
+                       <div className="space-y-2">
+                        <label className="text-[12px] font-black text-orange-600 uppercase tracking-widest ml-1">Email</label>
+                        <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="Your Email"
+                          className="w-full border-2 border-gray-50 bg-gray-50 rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-500 focus:bg-white transition-all font-medium" />
+                      </div>
+
                       </div>
                       <div className="space-y-2">
                         <label className="text-[12px] font-black text-orange-600 uppercase tracking-widest ml-1">Service Required</label>
